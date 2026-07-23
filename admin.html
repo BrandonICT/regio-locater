@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Beheerders Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f4f4f9; max-width: 800px; margin: 0 auto; }
+    .card { background: white; padding: 1.5rem; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; color: white; }
+    .btn-approve { background: #2e7d32; }
+    .btn-deny { background: #c62828; }
+    input, textarea, select { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1> Eigenaar Dashboard</h1>
+  <p>Keur meldingen goed om ze openbaar te maken op de kaart.</p>
+  <hr style="margin: 1rem 0;">
+
+  <h2> Inkomende Meldingen</h2>
+  <div id="pending-list">Laden...</div>
+
+  <h2> Wenslijst Aanpassen</h2>
+  <div class="card">
+    <label>Kies Kastje:</label>
+    <select id="kastjeSelect" onchange="loadWenslijst()"></select>
+    
+    <label>Nieuwe Wenslijst:</label>
+    <textarea id="wenslijstInput" rows="3"></textarea>
+    <button onclick="saveWenslijst()" class="btn btn-approve">Opslaan</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://izjbtmnivskyspmzknaw.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadPending() {
+      const { data } = await db.from('inventaris').select('*, kastjes(naam)').eq('goedgekeurd', false);
+      const container = document.getElementById('pending-list');
+      container.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p>Geen openstaande meldingen.</p>';
+        return;
+      }
+
+      data.forEach(item => {
+        container.innerHTML += `
+          <div class="card">
+            <p><b>Kastje:</b> ${item.kastjes?.naam || 'Onbekend'}</p>
+            <p><b>Melding:</b> ${item.item}</p>
+            <br>
+            <button class="btn btn-approve" onclick="updateStatus(${item.id}, true)">Goedkeuren</button>
+            <button class="btn btn-deny" onclick="deleteItem(${item.id})">Afwijzen</button>
+          </div>`;
+      });
+    }
+
+    async function updateStatus(id, status) {
+      await db.from('inventaris').update({ goedgekeurd: status }).eq('id', id);
+      loadPending();
+    }
+
+    async function deleteItem(id) {
+      await db.from('inventaris').delete().eq('id', id);
+      loadPending();
+    }
+
+    async function loadKastjesDropdown() {
+      const { data } = await db.from('kastjes').select('*');
+      const select = document.getElementById('kastjeSelect');
+      select.innerHTML = '';
+      if (data) {
+        data.forEach(k => {
+          select.innerHTML += `<option value="${k.id}">${k.naam}</option>`;
+        });
+        loadWenslijst();
+      }
+    }
+
+    async function loadWenslijst() {
+      const id = document.getElementById('kastjeSelect').value;
+      if (!id) return;
+      const { data } = await db.from('kastjes').select('wenslijst').eq('id', id).single();
+      if (data) {
+        document.getElementById('wenslijstInput').value = data.wenslijst || '';
+      }
+    }
+
+    async function saveWenslijst() {
+      const id = document.getElementById('kastjeSelect').value;
+      const wenslijst = document.getElementById('wenslijstInput').value;
+      await db.from('kastjes').update({ wenslijst }).eq('id', id);
+      alert('Wenslijst bijgewerkt!');
+    }
+
+    loadPending();
+    loadKastjesDropdown();
+  </script>
+</body>
+</html>
