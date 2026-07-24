@@ -7,143 +7,192 @@
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; }
-    header { background: #2e7d32; color: white; padding: 1rem; text-align: center; }
+    header { background: #2e7d32; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+    .search-bar { padding: 0.5rem 1rem; background: #e8f5e9; display: flex; gap: 10px; align-items: center; }
     #container { display: flex; flex: 1; flex-direction: row; }
     #map { flex: 2; height: 100%; min-height: 300px; }
     #sidebar { flex: 1; padding: 1.5rem; background: #f9f9f9; overflow-y: auto; border-left: 1px solid #ccc; }
-    .btn { background: #2e7d32; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-top: 5px; }
-    .btn:hover { background: #1b5e20; }
-    .btn-reserve { background: #e65100; }
-    .btn-reserve:hover { background: #bf360c; }
+    .btn { background: #2e7d32; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+    .btn-admin { background: #1976d2; }
+    .btn-logout { background: #c62828; }
     .card { background: white; padding: 1rem; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 1rem; }
-    ul { list-style-type: none; margin-top: 0.5rem; }
-    li { padding: 6px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    input, textarea, select { width: 100%; padding: 8px; margin: 6px 0 12px; border: 1px solid #ccc; border-radius: 4px; }
-    @media (max-width: 768px) { #container { flex-direction: column; } #map { height: 50vh; } }
+    input, select { width: 100%; padding: 8px; margin: 6px 0 12px; border: 1px solid #ccc; border-radius: 4px; }
+    .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    .auth-box { background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 400px; }
   </style>
 </head>
 <body>
 
+  <div id="authModal" class="auth-overlay">
+    <div class="auth-box card">
+      <h2 id="authTitle">Registreren</h2>
+      <form id="authForm" onsubmit="handleAuth(event)">
+        <label>E-mailadres</label>
+        <input type="email" id="authEmail" required>
+        
+        <label>Wachtwoord</label>
+        <input type="password" id="authPassword" required minlength="6">
+
+        <div id="registerFields">
+          <label>Woonplaats</label>
+          <input type="text" id="authWoonplaats">
+
+          <label>Ik gebruik het platform als:</label>
+          <select id="authRol">
+            <option value="bezoeker">Bezoeker (Zoeken & Reserveren)</option>
+            <option value="eigenaar">Eigenaar (Kastje / Minibieb beheren)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn" id="authSubmitBtn" style="width: 100%;">Account Aanmaken</button>
+      </form>
+      <br>
+      <p style="font-size:0.9rem; text-align:center;">
+        <span id="authToggleText">Al een account?</span> 
+        <a href="#" onclick="toggleAuthMode()" id="authToggleLink">Inloggen</a>
+      </p>
+    </div>
+  </div>
+
   <header>
-    <h1>Buurtkastjes & Minibiebs Regio</h1>
+    <h1>Buurtkastjes Regio</h1>
+    <div id="userNav" style="display: flex; gap: 10px;"></div>
   </header>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Zoek op woonplaats of adres..." style="margin:0; flex:1;">
+    <button onclick="searchLocation()" class="btn">Zoeken</button>
+  </div>
 
   <div id="container">
     <div id="map"></div>
     <div id="sidebar">
-      <div id="details">
-        <h2>Selecteer een kastje</h2>
-        <p>Klik op een icoon op de kaart om de inventaris en wenslijst te bekijken.</p>
-      </div>
+      <h2>Selecteer een kastje</h2>
+      <p>Klik op een icoon op de kaart om de details te bekijken.</p>
     </div>
   </div>
 
   <script>
-    // Supabase Configuratie
     const SUPABASE_URL = 'https://izjbtmnivskyspmzknaw.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Leaflet Kaart Initialiseren
-    const map = L.map('map').setView([52.3676, 4.9041], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+    let map, isLoginMode = false, currentUser = null, userProfile = null;
 
-    let activeKastjeId = null;
+    // Kaart initialiseren
+    map = L.map('map').setView([52.3676, 4.9041], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
-    // Kastjes ophalen en op kaart zetten
-    async function loadKastjes() {
-      const { data: kastjes, error } = await db.from('kastjes').select('*');
-      if (error) return console.error(error);
-
-      kastjes.forEach(k => {
-        const marker = L.marker([k.latitude, k.longitude]).addTo(map);
-        marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}`);
-        marker.on('click', () => showKastjeDetails(k));
-      });
-    }
-
-    // Details tonen in zijbalk
-    async function showKastjeDetails(kastje) {
-      activeKastjeId = kastje.id;
-      const { data: items } = await db.from('inventaris')
-        .select('*')
-        .eq('kastje_id', kastje.id)
-        .eq('goedgekeurd', true);
-
-      let html = `
-        <h2>${kastje.naam}</h2>
-        <p><b>Adres:</b> ${kastje.adres}</p>
-        <div class="card" style="margin-top:10px;">
-          <h3> Wenslijst</h3>
-          <p>${kastje.wenslijst || 'Geen wenslijst opgegeven.'}</p>
-        </div>
-        
-        <h3> Inventaris</h3>
-        <ul>`;
-
-      const now = new Date();
-      items.forEach(item => {
-        const isReserved = item.status === 'gereserveerd' && new Date(item.gereserveerd_tot) > now;
-        html += `
-          <li>
-            <span>${item.item} ${isReserved ? '<i>(Gereserveerd)</i>' : ''}</span>
-            ${!isReserved ? `<button class="btn btn-reserve" onclick="reserveerItem(${item.id})">Reserveer 2u</button>` : ''}
-          </li>`;
-      });
-
-      html += `</ul>
-
-        <div class="card" style="margin-top:15px;">
-          <h3> Melding maken voor eigenaar</h3>
-          <form onsubmit="sendMelding(event)">
-            <label>Iets neergelegd of meegenomen?</label>
-            <input type="text" id="meldingText" placeholder="Bijv. 2 pakken rijst neergelegd" required>
-            <button type="submit" class="btn">Verstuur Melding</button>
-          </form>
-        </div>`;
-
-      document.getElementById('sidebar').innerHTML = html;
-    }
-
-    // Item 2 uur reserveren
-    async function reserveerItem(itemId) {
-      const gereserveerdTot = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      const { error } = await db.from('inventaris')
-        .update({ status: 'gereserveerd', gereserveerd_tot: gereserveerdTot })
-        .eq('id', itemId);
-
-      if (!error) {
-        alert('Item succesvol gereserveerd voor 2 uur!');
-        location.reload();
+    // Auth Check bij opstarten
+    async function checkUser() {
+      const { data: { session } } = await db.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        const { data } = await db.from('profielen').select('*').eq('id', currentUser.id).single();
+        userProfile = data;
+        document.getElementById('authModal').style.display = 'none';
+        updateNav();
+        loadKastjes();
+      } else {
+        document.getElementById('authModal').style.display = 'flex';
       }
     }
 
-    // Melding versturen naar beheerder
-    async function sendMelding(e) {
+    // Switchen tussen Inloggen en Registreren
+    function toggleAuthMode() {
+      isLoginMode = !isLoginMode;
+      document.getElementById('authTitle').innerText = isLoginMode ? 'Inloggen' : 'Registreren';
+      document.getElementById('registerFields').style.display = isLoginMode ? 'none' : 'block';
+      document.getElementById('authSubmitBtn').innerText = isLoginMode ? 'Inloggen' : 'Account Aanmaken';
+      document.getElementById('authToggleText').innerText = isLoginMode ? 'Nog geen account?' : 'Al een account?';
+      document.getElementById('authToggleLink').innerText = isLoginMode ? 'Registreren' : 'Inloggen';
+    }
+
+    // Inloggen of Registreren verwerken
+    async function handleAuth(e) {
       e.preventDefault();
-      const val = document.getElementById('meldingText').value;
-      const { error } = await db.from('inventaris').insert([{
-        kastje_id: activeKastjeId,
-        item: val,
-        goedgekeurd: false,
-        type_melding: 'bezoekers_melding'
-      }]);
+      const email = document.getElementById('authEmail').value;
+      const password = document.getElementById('authPassword').value;
 
-      if (!error) {
-        alert('Bedankt! Je melding is doorgestuurd naar de eigenaar.');
-        document.getElementById('meldingText').value = '';
+      if (isLoginMode) {
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if (error) alert(error.message);
+        else checkUser();
+      } else {
+        const rol = document.getElementById('authRol').value;
+        const woonplaats = document.getElementById('authWoonplaats').value;
+        const { data, error } = await db.auth.signUp({ email, password });
+        
+        if (error) {
+          alert(error.message);
+        } else if (data.user) {
+          await db.from('profielen').insert([{ id: data.user.id, email, rol, woonplaats }]);
+          alert('Account aangemaakt!');
+          checkUser();
+        }
       }
     }
 
-    loadKastjes();
+    // Navigatiebalk updaten (Admin knop tonen voor eigenaren)
+    function updateNav() {
+      const nav = document.getElementById('userNav');
+      let html = '';
+      if (userProfile?.rol === 'eigenaar') {
+        html += `<button onclick="window.location.href='admin.html'" class="btn btn-admin"> Admin Dashboard</button>`;
+      }
+      html += `<button onclick="logout()" class="btn btn-logout">Uitloggen</button>`;
+      nav.innerHTML = html;
+    }
+
+    async function logout() {
+      await db.auth.signOut();
+      location.reload();
+    }
+
+    // Zoekfunctie (OpenStreetMap Nominatim API)
+    async function searchLocation() {
+      const query = document.getElementById('searchInput').value;
+      if (!query) return;
+
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        map.setView([lat, lon], 14);
+      } else {
+        alert('Locatie niet gevonden.');
+      }
+    }
+
+    // Kastjes op kaart laden
+    async function loadKastjes() {
+      const { data: kastjes } = await db.from('kastjes').select('*');
+      if (kastjes) {
+        kastjes.forEach(k => {
+          L.marker([k.latitude, k.longitude]).addTo(map)
+            .bindPopup(`<b>${k.naam}</b><br>${k.adres}`)
+            .on('click', () => showDetails(k));
+        });
+      }
+    }
+
+    async function showDetails(k) {
+      document.getElementById('sidebar').innerHTML = `
+        <h2>${k.naam}</h2>
+        <p><b>Adres:</b> ${k.adres}</p>
+        <div class="card" style="margin-top:10px;">
+          <h3>Wenslijst</h3>
+          <p>${k.wenslijst || 'Geen wenslijst'}</p>
+        </div>`;
+    }
+
+    checkUser();
   </script>
 </body>
 </html>
