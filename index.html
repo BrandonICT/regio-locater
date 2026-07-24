@@ -104,11 +104,28 @@
       <button onclick="filterKastjes('Minibieb')" class="btn btn-secondary" id="filter-biebs">Biebs</button>
       <button onclick="filterKastjes('Dringend')" class="btn btn-secondary" id="filter-dringend" style="border-color: var(--danger); color: var(--danger);">🚨 Dringend</button>
     </div>
+
+    <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: var(--card-bg, #fff); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);">
+      <span>📍 Straal vanaf GPS:</span>
+      <select id="radiusSelect" onchange="applyRadiusFilter()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color, #cbd5e1);">
+        <option value="9999">Geen limiet (Alles)</option>
+        <option value="1">Binnen 1 km</option>
+        <option value="3">Binnen 3 km</option>
+        <option value="5">Binnen 5 km</option>
+        <option value="10">Binnen 10 km</option>
+      </select>
+    </div>
   </div>
 
   <div id="container">
     <div id="map"></div>
     <div id="sidebar">
+      <div class="card" style="background: linear-gradient(135deg, #10b98115, #0284c715); border: 1px solid var(--primary);">
+        <h3>🥾 Wandel & Fietsroute</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Genereer een leuke route langs de 3 dichtstbijzijnde kastjes vanaf jouw locatie.</p>
+        <button onclick="generateRoute()" class="btn" style="width: 100%; margin-top: 10px;">🗺️ Route Samenstellen</button>
+      </div>
+
       <div class="card" style="border-left: 4px solid var(--primary);">
         <h3>⚡ Live Community Activiteit</h3>
         <div id="activityFeed" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">Laden...</div>
@@ -128,7 +145,6 @@
   <script>
     let deferredPrompt;
 
-    // Relatieve registratie van de Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error:', err));
     }
@@ -163,7 +179,8 @@
 
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
     let map, isLoginMode = false, currentUser = null, userProfile = null;
-    let allKastjes = [], markersGroup = L.layerGroup(), userMarker = null, userCoords = null;
+    let allKastjes = [], markersGroup = L.layerGroup(), routeLayer = L.layerGroup(), userMarker = null, userCoords = null;
+    let currentCategoryFilter = 'alles';
 
     const greenIcon = L.icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -180,6 +197,7 @@
     map = L.map('map').setView([52.3676, 4.9041], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
+    routeLayer.addTo(map);
 
     function openDrawer() { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
     function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
@@ -244,13 +262,17 @@
 
     async function logout() { await db.auth.signOut(); location.reload(); }
 
-    function calculateDistance(lat1, lon1, lat2, lon2) {
+    function getDistanceKm(lat1, lon1, lat2, lon2) {
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const d = R * c;
+      return R * c;
+    }
+
+    function calculateDistanceText(lat1, lon1, lat2, lon2) {
+      const d = getDistanceKm(lat1, lon1, lat2, lon2);
       return d < 1 ? Math.round(d * 1000) + ' meter' : d.toFixed(1) + ' km';
     }
 
@@ -261,6 +283,7 @@
         map.setView([userCoords.lat, userCoords.lon], 14);
         if (userMarker) map.removeLayer(userMarker);
         userMarker = L.circleMarker([userCoords.lat, userCoords.lon], { color: '#0284c7', fillColor: '#38bdf8', fillOpacity: 0.8, radius: 9 }).addTo(map);
+        renderMarkers(currentCategoryFilter);
       });
     }
 
@@ -293,15 +316,28 @@
       }
     }
 
-    function renderMarkers(filter) {
-      markersGroup.clearLayers();
-      allKastjes.forEach(k => {
-        let match = false;
-        if (filter === 'alles') match = true;
-        else if (filter === 'Dringend') match = (k.status === 'Dringend vulhulp nodig' || k.status === 'Bijna leeg');
-        else match = (k.type === filter);
+    function applyRadiusFilter() {
+      renderMarkers(currentCategoryFilter);
+    }
 
-        if (match) {
+    function renderMarkers(filter) {
+      currentCategoryFilter = filter;
+      markersGroup.clearLayers();
+      const maxRadius = parseFloat(document.getElementById('radiusSelect').value);
+
+      allKastjes.forEach(k => {
+        let matchCategory = false;
+        if (filter === 'alles') matchCategory = true;
+        else if (filter === 'Dringend') matchCategory = (k.status === 'Dringend vulhulp nodig' || k.status === 'Bijna leeg');
+        else matchCategory = (k.type === filter);
+
+        let matchRadius = true;
+        if (userCoords && maxRadius < 9000) {
+          const dist = getDistanceKm(userCoords.lat, userCoords.lon, k.latitude, k.longitude);
+          if (dist > maxRadius) matchRadius = false;
+        }
+
+        if (matchCategory && matchRadius) {
           const icon = k.type === 'Minibieb' ? blueIcon : greenIcon;
           const marker = L.marker([k.latitude, k.longitude], { icon }).addTo(markersGroup);
           marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}`);
@@ -319,9 +355,51 @@
       renderMarkers(type);
     }
 
+    // NIEUW: Route Samenstellen langs 3 dichtstbijzijnde locaties
+    function generateRoute() {
+      if (!userCoords) {
+        alert('Klik eerst op de blauwe "GPS" knop om jouw locatie te bepalen.');
+        locateUser();
+        return;
+      }
+
+      routeLayer.clearLayers();
+
+      // Sorteer op afstand
+      const sorted = [...allKastjes].map(k => {
+        return { ...k, dist: getDistanceKm(userCoords.lat, userCoords.lon, k.latitude, k.longitude) };
+      }).sort((a, b) => a.dist - b.dist).slice(0, 3);
+
+      if (sorted.length === 0) return alert('Geen locaties gevonden in de buurt.');
+
+      const latlngs = [[userCoords.lat, userCoords.lon]];
+      let routeHtml = '<ol style="padding-left: 18px; margin-top: 8px; font-size: 0.85rem;">';
+
+      sorted.forEach((k, index) => {
+        latlngs.push([k.latitude, k.longitude]);
+        routeHtml += `<li style="margin-bottom: 4px;"><strong>${k.naam}</strong> (${calculateDistanceText(userCoords.lat, userCoords.lon, k.latitude, k.longitude)})</li>`;
+      });
+      routeHtml += '</ol>';
+
+      // Teken de routelijn
+      const polyline = L.polyline(latlngs, { color: '#10b981', weight: 4, dashArray: '8, 8' }).addTo(routeLayer);
+      map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+
+      // Toon in de sidebar
+      const sidebarEl = document.getElementById('sidebar');
+      sidebarEl.innerHTML = `
+        <div class="card" style="border-left: 4px solid var(--primary);">
+          <h3>🗺️ Jouw Gegenereerde Route</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Volg deze route langs de 3 dichtstbijzijnde punten:</p>
+          ${routeHtml}
+          <button onclick="loadKastjes()" class="btn btn-secondary" style="width:100%; margin-top:10px;">Sluit Route</button>
+        </div>
+      ` + sidebarEl.innerHTML;
+    }
+
     async function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
-      const googleMapsUrl = `https://maps.google.com/?q=${k.latitude},${k.longitude}`;
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${k.latitude},${k.longitude}`;
       
       let statusColor = '#10b981';
       if (k.status === 'Bijna leeg') statusColor = '#f59e0b';
@@ -329,7 +407,7 @@
 
       let distanceText = '';
       if (userCoords) {
-        const dist = calculateDistance(userCoords.lat, userCoords.lon, k.latitude, k.longitude);
+        const dist = calculateDistanceText(userCoords.lat, userCoords.lon, k.latitude, k.longitude);
         distanceText = `<p style="font-size: 0.9rem; color: var(--secondary); font-weight: bold; margin-top: 6px;">📍 Afstand: ${dist}</p>`;
       }
 
