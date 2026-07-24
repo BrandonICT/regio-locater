@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buurtkastjes & Minibiebs Regio</title>
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,7 +14,7 @@
 
   <div id="authModal" class="auth-overlay">
     <div class="auth-box">
-      <h2 id="authTitle" style="color: var(--primary); margin-bottom: 0.5rem;">Registreren</h2>
+      <h2 id="authTitle" style="color: var(--primary-dark); margin-bottom: 0.5rem;">Registreren</h2>
       <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Maak een account aan om te starten.</p>
       
       <form id="authForm" onsubmit="handleAuth(event)">
@@ -45,19 +45,22 @@
     </div>
   </div>
 
-  <div id="drawerOverlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
   <div id="drawer" class="drawer">
-    <h2>Menu & Opties</h2>
-    <div class="drawer-nav">
-      <div id="drawerUserInfo" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;"></div>
-      <div id="drawerMenuButtons"></div>
+    <div class="drawer-header">
+      <h2>Menu</h2>
+      <button class="close-btn" onclick="closeDrawer()">✕</button>
     </div>
-    <button onclick="logout()" class="btn btn-logout" style="width: 100%; margin-top: auto;">Uitloggen</button>
+    <div class="drawer-content">
+      <div id="drawerUserInfo" style="padding: 12px; background: var(--bg-main); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted);"></div>
+      <div id="drawerMenuButtons" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      <button onclick="logout()" class="btn btn-logout">Uitloggen</button>
+    </div>
   </div>
 
   <header>
     <h1>Buurtkastjes Regio</h1>
-    <button class="menu-toggle-btn" onclick="toggleDrawer()">☰ Menu</button>
+    <button class="menu-toggle-btn" onclick="openDrawer()">☰ Opties</button>
   </header>
 
   <div class="search-container">
@@ -79,7 +82,7 @@
     <div id="sidebar">
       <div class="card">
         <h2>Selecteer een locatie</h2>
-        <p style="color: var(--text-muted); margin-top: 6px;">Klik op een gekleurde speld op de kaart om details, wenslijst en opties te bekijken.</p>
+        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om de details, foto, wenslijst en opties te bekijken.</p>
       </div>
     </div>
   </div>
@@ -105,9 +108,14 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
 
-    function toggleDrawer() {
-      document.getElementById('drawer').classList.toggle('active');
-      document.getElementById('drawerOverlay').classList.toggle('active');
+    function openDrawer() {
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerOverlay').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawerOverlay').classList.remove('open');
     }
 
     async function checkUser() {
@@ -156,12 +164,14 @@
     }
 
     function updateDrawerNav() {
-      document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><b>${currentUser.email}</b> (${userProfile?.rol || 'bezoeker'})`;
-      let html = `<button onclick="window.location.href='index.html'" class="btn btn-secondary" style="width:100%; text-align:left;">📍 Kaart Bekijken</button>`;
+      document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong style="color:var(--text-main);">${currentUser.email}</strong><br>Rol: <em>${userProfile?.rol || 'bezoeker'}</em>`;
+      
+      let html = `<button onclick="window.location.href='index.html'; closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
       
       if (userProfile?.rol === 'eigenaar') {
-        html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; margin-top:8px;">⚙️ Admin Dashboard</button>`;
+        html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>`;
       }
+      
       document.getElementById('drawerMenuButtons').innerHTML = html;
     }
 
@@ -186,7 +196,7 @@
         userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         map.setView([userCoords.lat, userCoords.lon], 14);
         if (userMarker) map.removeLayer(userMarker);
-        userMarker = L.circleMarker([userCoords.lat, userCoords.lon], { color: '#0288d1', fillColor: '#29b6f6', fillOpacity: 0.8, radius: 9 }).addTo(map);
+        userMarker = L.circleMarker([userCoords.lat, userCoords.lon], { color: '#0284c7', fillColor: '#38bdf8', fillOpacity: 0.8, radius: 9 }).addTo(map);
       });
     }
 
@@ -230,9 +240,9 @@
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
       const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${k.latitude},${k.longitude}`;
       
-      let statusColor = '#2e7d32';
-      if (k.status === 'Bijna leeg') statusColor = '#f57c00';
-      if (k.status === 'Dringend vulhulp nodig') statusColor = '#d32f2f';
+      let statusColor = '#10b981';
+      if (k.status === 'Bijna leeg') statusColor = '#f59e0b';
+      if (k.status === 'Dringend vulhulp nodig') statusColor = '#ef4444';
 
       const lastUpdate = k.updated_at 
         ? new Date(k.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })
@@ -241,43 +251,45 @@
       let distanceText = '';
       if (userCoords) {
         const dist = calculateDistance(userCoords.lat, userCoords.lon, k.latitude, k.longitude);
-        distanceText = `<p style="font-size: 0.9rem; color: var(--secondary); font-weight: bold; margin-top: 4px;"> Afstand vanaf jou: ${dist}</p>`;
+        distanceText = `<p style="font-size: 0.9rem; color: var(--secondary); font-weight: bold; margin-top: 6px;">📍 Afstand: ${dist}</p>`;
       }
 
       const { data: approvedItems } = await db.from('inventaris').select('item').eq('kastje_id', k.id).eq('goedgekeurd', true);
 
-      let itemsListHtml = '<p style="font-size: 0.85rem; color: #888;">Nog geen goedgekeurde meldingen van bezoekers.</p>';
+      let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen goedgekeurde meldingen van bezoekers.</p>';
       if (approvedItems && approvedItems.length > 0) {
-        itemsListHtml = '<ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-main);">' + 
-          approvedItems.map(i => `<li style="margin-bottom: 3px;">${i.item}</li>`).join('') + '</ul>';
+        itemsListHtml = '<ul style="margin-left: 18px; font-size: 0.9rem; color: var(--text-main);">' + 
+          approvedItems.map(i => `<li style="margin-bottom: 4px;">${i.item}</li>`).join('') + '</ul>';
       }
 
       document.getElementById('sidebar').innerHTML = `
         <div class="card">
-          ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:10px; margin-bottom:12px;">` : ''}
-          <span class="badge ${badgeClass}">${k.type || 'Buurtkastje'}</span>
-          <span class="badge" style="background-color: ${statusColor};">${k.status || 'Goed gevuld'}</span>
+          ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:12px; margin-bottom:12px;">` : ''}
+          <div>
+            <span class="badge ${badgeClass}">${k.type || 'Buurtkastje'}</span>
+            <span class="badge" style="background-color: ${statusColor};">${k.status || 'Goed gevuld'}</span>
+          </div>
           
           <h2>${k.naam}</h2>
           <p style="color: var(--text-muted); margin-top: 4px;"><b>Adres:</b> ${k.adres}</p>
           ${distanceText}
-          <p style="font-size: 0.8rem; color: #888; margin-top: 4px;">Laatst bijgewerkt: ${lastUpdate}</p>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 6px;">Laatst bijgewerkt: ${lastUpdate}</p>
           
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route">Route via Google Maps</a>
         </div>
         
         <div class="card">
           <h3>Wenslijst Eigenaar</h3>
-          <p style="margin-top: 6px; color: var(--text-main);">${k.wenslijst || 'Geen wenslijst opgegeven.'}</p>
+          <p style="margin-top: 6px; color: var(--text-main); line-height: 1.4;">${k.wenslijst || 'Geen wenslijst opgegeven.'}</p>
         </div>
 
         <div class="card">
-          <h3>Actuele Voorraad (Door bezoekers)</h3>
-          <div style="margin-top: 8px;">${itemsListHtml}</div>
+          <h3>Actuele Voorraad</h3>
+          <div style="margin-top: 10px;">${itemsListHtml}</div>
           
-          <hr style="margin: 12px 0; border: none; border-top: 1px solid var(--border-color);">
+          <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
           
-          <h4 style="font-size: 0.95rem; margin-bottom: 6px; color: var(--primary);">Meld wat je gebracht of gezien hebt:</h4>
+          <h4 style="font-size: 0.9rem; margin-bottom: 6px; color: var(--text-main);">Meld wat je gebracht of gezien hebt:</h4>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
