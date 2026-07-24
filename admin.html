@@ -57,7 +57,7 @@
       </div>
     </div>
 
-    <div class="card" style="margin-bottom: 20px;">
+    <div class="card" style="margin-bottom: 20px;" id="formCard">
       <h2 id="formTitle">➕ Nieuw Kastje / Bieb Toevoegen</h2>
       <form id="kastjeForm" onsubmit="saveKastje(event)" style="margin-top: 12px;">
         <input type="hidden" id="kastjeId">
@@ -95,10 +95,12 @@
         <label>🕒 Openingstijden</label>
         <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend, of Dagelijks van 08:00 - 20:00">
 
-        <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer;">
-          <input type="checkbox" id="rolstoel_toegankelijk" checked style="width: auto; margin: 0;">
-          ♿ Rolstoeltoegankelijk
-        </label>
+        <div style="margin: 12px 0;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
+            <input type="checkbox" id="rolstoel_toegankelijk" checked style="width: 20px; height: 20px;">
+            ♿ Rolstoeltoegankelijk
+          </label>
+        </div>
 
         <label>Wenslijst voor bezoekers</label>
         <textarea id="wenslijst" rows="3" placeholder="Wat is er op dit moment hard nodig? (Bijv: Houdbare melk, rijst, kinderboeken)"></textarea>
@@ -106,9 +108,9 @@
         <label>Afbeelding URL (Foto)</label>
         <input type="url" id="foto_url" placeholder="https://voorbeeld.nl/foto.jpg">
 
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
-          <button type="submit" class="btn" style="flex: 1;">Opslaan</button>
-          <button type="button" onclick="resetForm()" class="btn btn-secondary">Annuleren</button>
+        <div style="display: flex; gap: 12px; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+          <button type="submit" class="btn" id="submitBtn" style="flex: 2; padding: 12px; font-size: 1rem; font-weight: bold;">💾 Opslaan</button>
+          <button type="button" onclick="resetForm()" class="btn btn-secondary" style="flex: 1;">✖️ Annuleren</button>
         </div>
       </form>
     </div>
@@ -188,7 +190,7 @@
       container.innerHTML = data.map(k => `
         <div style="border:1px solid var(--border-color); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
-            <strong>${k.naam}</strong> (${k.type})<br>
+            <strong>${k.naam}</strong> (${k.type || 'Buurtkastje'})<br>
             <span style="font-size:0.85rem; color:var(--text-muted);">${k.adres}</span><br>
             <span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">🕒 ${k.openingstijden || '24/7 geopend'} | ♿ ${k.rolstoel_toegankelijk !== false ? 'Toegankelijk' : 'Niet toegankelijk'}</span>
           </div>
@@ -203,24 +205,26 @@
     function editKastje(k) {
       document.getElementById('formTitle').innerText = '✏️ Kastje Bewerken';
       document.getElementById('kastjeId').value = k.id;
-      document.getElementById('naam').value = k.naam;
+      document.getElementById('naam').value = k.naam || '';
       document.getElementById('type').value = k.type || 'Buurtkastje';
-      document.getElementById('adres').value = k.adres;
-      document.getElementById('latitude').value = k.latitude;
-      document.getElementById('longitude').value = k.longitude;
+      document.getElementById('adres').value = k.adres || '';
+      document.getElementById('latitude').value = k.latitude || '';
+      document.getElementById('longitude').value = k.longitude || '';
       document.getElementById('status').value = k.status || 'Goed gevuld';
       document.getElementById('openingstijden').value = k.openingstijden || '24/7 geopend';
       document.getElementById('rolstoel_toegankelijk').checked = k.rolstoel_toegankelijk !== false;
       document.getElementById('wenslijst').value = k.wenslijst || '';
       document.getElementById('foto_url').value = k.foto_url || '';
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('submitBtn').innerText = '💾 Wijzigingen Opslaan';
+      document.getElementById('formCard').scrollIntoView({ behavior: 'smooth' });
     }
 
     function resetForm() {
       document.getElementById('formTitle').innerText = '➕ Nieuw Kastje / Bieb Toevoegen';
       document.getElementById('kastjeForm').reset();
       document.getElementById('kastjeId').value = '';
+      document.getElementById('submitBtn').innerText = '💾 Opslaan';
     }
 
     async function saveKastje(e) {
