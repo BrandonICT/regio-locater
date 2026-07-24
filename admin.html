@@ -3,79 +3,67 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beheerders Dashboard</title>
+  <title>Eigenaar Dashboard</title>
+
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { padding: 2rem; background: #f4f4f9; max-width: 800px; margin: 0 auto; color: #333; }
-    h1 { margin-bottom: 0.5rem; }
-    h2 { margin-top: 1.5rem; margin-bottom: 0.8rem; color: #2e7d32; }
-    .card { background: white; padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; color: white; background: #2e7d32; font-weight: bold; }
-    .btn:hover { background: #1b5e20; }
-    .btn-deny { background: #c62828; }
-    .btn-deny:hover { background: #8e0000; }
-    .btn-back { background: #555; text-decoration: none; display: inline-block; margin-bottom: 1rem; padding: 6px 12px; border-radius: 4px; color: white; font-size: 0.9rem; }
-    input, textarea, select { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; }
-  </style>
 </head>
-<body>
+<body style="height: auto; overflow-y: auto; padding: 2rem 1rem;">
 
-  <a href="index.html" class="btn-back">← Terug naar de kaart</a>
-  <h1>Eigenaar Dashboard</h1>
-  <p>Beheer hier je eigen kastjes, wenslijsten en inkomende bezoekersmeldingen.</p>
-
-  <div class="card">
-    <h2>Nieuw Kastje / Minibieb Toevoegen</h2>
-    <form onsubmit="addKastje(event)">
-      <label>Naam van het kastje:</label>
-      <input type="text" id="kastNaam" placeholder="Bijv. Buurtkastje Kerkstraat" required>
-
-      <label>Type:</label>
-      <select id="kastType">
-        <option value="Buurtkastje">Buurtkastje</option>
-        <option value="Minibieb">Minibieb</option>
-      </select>
-
-      <label>Adres + Woonplaats:</label>
-      <input type="text" id="kastAdres" placeholder="Bijv. Kerkstraat 12, Amsterdam" required>
-
-      <label>Eerste wenslijst (optioneel):</label>
-      <textarea id="kastWenslijst" rows="2" placeholder="Bijv. Houdbare melk, rijst, kinderboeken..."></textarea>
-
-      <button type="submit" class="btn">Plaats op de Kaart</button>
-    </form>
-  </div>
-
-  <h2>Inkomende Meldingen</h2>
-  <div id="pending-list">Laden...</div>
-
-  <div class="card">
-    <h2>Wenslijst Aanpassen</h2>
-    <label>Kies Kastje:</label>
-    <select id="kastjeSelect" onchange="loadWenslijst()"></select>
+  <div style="max-width: 800px; margin: 0 auto;">
+    <a href="index.html" class="btn btn-secondary" style="margin-bottom: 1.5rem;">← Terug naar de kaart</a>
     
-    <label>Wenslijst tekst:</label>
-    <textarea id="wenslijstInput" rows="3"></textarea>
-    <button onclick="saveWenslijst()" class="btn">Opslaan</button>
+    <div class="card">
+      <h1>Eigenaar Dashboard</h1>
+      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier eenvoudig je eigen kastjes, wenslijsten en meldingen.</p>
+    </div>
+
+    <div class="card">
+      <h2>Nieuwe Locatie Toevoegen</h2>
+      <form onsubmit="addKastje(event)">
+        <label>Naam:</label>
+        <input type="text" id="kastNaam" placeholder="Bijv. Buurtkastje Kerkstraat" required>
+
+        <label>Type:</label>
+        <select id="kastType">
+          <option value="Buurtkastje">Buurtkastje</option>
+          <option value="Minibieb">Minibieb</option>
+        </select>
+
+        <label>Adres + Woonplaats:</label>
+        <input type="text" id="kastAdres" placeholder="Bijv. Kerkstraat 12, Amsterdam" required>
+
+        <label>Wenslijst (optioneel):</label>
+        <textarea id="kastWenslijst" rows="3" placeholder="Bijv. Houdbare melk, rijst, kinderboeken..."></textarea>
+
+        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Plaats op de Kaart</button>
+      </form>
+    </div>
+
+    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen</h2>
+    <div id="pending-list">Laden...</div>
+
+    <div class="card" style="margin-top: 1.5rem;">
+      <h2>Wenslijst Aanpassen</h2>
+      <label>Kies Kastje:</label>
+      <select id="kastjeSelect" onchange="loadWenslijst()"></select>
+      
+      <label>Wenslijst tekst:</label>
+      <textarea id="wenslijstInput" rows="3"></textarea>
+      <button onclick="saveWenslijst()" class="btn">Opslaan</button>
+    </div>
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://izjbtmnivskyspmzknaw.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX';
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
 
-    // Toegang controleren
     async function checkAdminAccess() {
       const { data: { session } } = await db.auth.getSession();
-      if (!session) {
-        window.location.href = 'index.html';
-        return;
-      }
+      if (!session) return window.location.href = 'index.html';
 
       const { data: profile } = await db.from('profielen').select('rol').eq('id', session.user.id).single();
       if (!profile || profile.rol !== 'eigenaar') {
-        alert('Geen toegang. Dit scherm is alleen voor kastje-eigenaren.');
+        alert('Dit scherm is alleen voor kastje-eigenaren.');
         window.location.href = 'index.html';
       } else {
         loadPending();
@@ -83,7 +71,6 @@
       }
     }
 
-    // Nieuw kastje toevoegen (geocoding via OpenStreetMap)
     async function addKastje(e) {
       e.preventDefault();
       const naam = document.getElementById('kastNaam').value;
@@ -91,38 +78,27 @@
       const adres = document.getElementById('kastAdres').value;
       const wenslijst = document.getElementById('kastWenslijst').value;
 
-      // Adres omzetten naar coördinaten (Latitude & Longitude)
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adres)}`);
       const geoData = await res.json();
 
-      if (!geoData || geoData.length === 0) {
-        alert('Adres niet gevonden! Controleer het adres en de woonplaats.');
-        return;
-      }
+      if (!geoData || geoData.length === 0) return alert('Adres niet gevonden! Controleer het adres.');
 
-      const latitude = parseFloat(geoData[0].lat);
-      const longitude = parseFloat(geoData[0].lon);
-
-      // Opslaan in Supabase
       const { error } = await db.from('kastjes').insert([{
-        naam, type, adres, wenslijst, latitude, longitude
+        naam, type, adres, wenslijst, latitude: parseFloat(geoData[0].lat), longitude: parseFloat(geoData[0].lon)
       }]);
 
       if (!error) {
-        alert('Kastje succesvol toegevoegd aan de kaart!');
+        alert('Kastje toegevoegd!');
         location.reload();
-      } else {
-        alert('Fout bij opslaan: ' + error.message);
       }
     }
 
-    // Inkomende bezoekersmeldingen laden
     async function loadPending() {
       const { data } = await db.from('inventaris').select('*, kastjes(naam)').eq('goedgekeurd', false);
       const container = document.getElementById('pending-list');
       
       if (!data || data.length === 0) {
-        container.innerHTML = '<div class="card"><p>Geen openstaande meldingen.</p></div>';
+        container.innerHTML = '<div class="card"><p style="color: var(--text-muted);">Geen openstaande meldingen.</p></div>';
         return;
       }
 
@@ -130,9 +106,10 @@
         <div class="card">
           <p><b>Kastje:</b> ${item.kastjes?.naam || 'Onbekend'}</p>
           <p><b>Melding:</b> ${item.item}</p>
-          <br>
-          <button class="btn" onclick="updateStatus(${item.id}, true)">Goedkeuren</button>
-          <button class="btn btn-deny" onclick="deleteItem(${item.id})">Afwijzen</button>
+          <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button class="btn" onclick="updateStatus(${item.id}, true)">Goedkeuren</button>
+            <button class="btn btn-deny" onclick="deleteItem(${item.id})">Afwijzen</button>
+          </div>
         </div>
       `).join('');
     }
@@ -147,18 +124,13 @@
       loadPending();
     }
 
-    // Wenslijst beheer
     async function loadKastjesDropdown() {
       const { data } = await db.from('kastjes').select('*');
       const select = document.getElementById('kastjeSelect');
       select.innerHTML = '';
       if (data && data.length > 0) {
-        data.forEach(k => {
-          select.innerHTML += `<option value="${k.id}">${k.naam}</option>`;
-        });
+        data.forEach(k => select.innerHTML += `<option value="${k.id}">${k.naam}</option>`);
         loadWenslijst();
-      } else {
-        select.innerHTML = '<option value="">Geen kastjes aanwezig</option>';
       }
     }
 
@@ -166,9 +138,7 @@
       const id = document.getElementById('kastjeSelect').value;
       if (!id) return;
       const { data } = await db.from('kastjes').select('wenslijst').eq('id', id).single();
-      if (data) {
-        document.getElementById('wenslijstInput').value = data.wenslijst || '';
-      }
+      if (data) document.getElementById('wenslijstInput').value = data.wenslijst || '';
     }
 
     async function saveWenslijst() {
