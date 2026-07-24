@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buurtkastjes & Minibiebs Regio</title>
+  <title>Regio-locater | Buurtkastjes & Minibiebs</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=5.0">
+  <link rel="stylesheet" href="style.css?v=6.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -49,6 +49,29 @@
     </div>
   </div>
 
+  <div id="downloadModal" class="auth-overlay" style="display: none;">
+    <div class="auth-box" style="max-width: 480px;">
+      <h2 style="color: var(--primary-dark); margin-bottom: 0.5rem;">📲 Download Regio-locater</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Kies jouw platform om de app te installeren:</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+          <h4 style="margin-bottom: 4px;">🤖 Android App (PWA / APK)</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Tik in Chrome op <strong>'Toevoegen aan startscherm'</strong> of gebruik de knop hieronder.</p>
+          <button onclick="installPWA()" class="btn" style="width: 100%;">Installeren op Android</button>
+        </div>
+
+        <div style="border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+          <h4 style="margin-bottom: 4px;">💻 Windows App (PWA)</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Open deze pagina in Chrome of Edge en klik bovenin de adresbalk op het <strong>Installeren</strong> icoontje (➕).</p>
+        </div>
+      </div>
+
+      <br>
+      <button onclick="closeDownloadModal()" class="btn btn-secondary" style="width: 100%;">Sluiten</button>
+    </div>
+  </div>
+
   <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
   <div id="drawer" class="drawer">
     <div class="drawer-header">
@@ -63,7 +86,7 @@
   </div>
 
   <header>
-    <h1>Buurtkastjes Regio</h1>
+    <h1>Regio-locater</h1>
     <button class="menu-toggle-btn" onclick="openDrawer()">☰ Opties</button>
   </header>
 
@@ -97,10 +120,44 @@
     </div>
   </div>
 
+  <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
+    <p>© 2026 <strong>BrandonICT</strong> — <em>Regio-locater</em>. Alle rechten voorbehouden.</p>
+  </footer>
+
   <script>
+    let deferredPrompt;
+
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+
+    function openDownloadModal() {
+      document.getElementById('downloadModal').style.display = 'flex';
+      closeDrawer();
+    }
+
+    function closeDownloadModal() {
+      document.getElementById('downloadModal').style.display = 'none';
+    }
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('Gebruiker heeft de app geïnstalleerd');
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        alert("Om te installeren: tik in je browser op het menu (drie puntjes) en kies 'Toevoegen aan startscherm'.");
+      }
     }
 
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
@@ -175,6 +232,10 @@
     function updateDrawerNav() {
       document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong style="color:var(--text-main);">${currentUser.email}</strong><br>Rol: <em>${userProfile?.rol || 'bezoeker'}</em>`;
       let html = `<button onclick="window.location.href='index.html'; closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
+      
+      // Downloadknop toegevoegd in het menu
+      html += `<button onclick="openDownloadModal()" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📥 App Downloaden (Windows / Android)</button>`;
+
       if (userProfile?.rol === 'eigenaar') {
         html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>`;
       }
@@ -304,7 +365,7 @@
           </div>
 
           <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <a href="https://api.whatsapp.com/send?text=${encodeURIComponent('Bekijk dit buurtkastje: ' + shareUrl)}" target="_blank" class="btn" style="background-color: #25D366; flex: 1;">💬 WhatsApp</a>
+            <a href="https://api.whatsapp.com/send?text=${encodeURIComponent('Bekijk dit buurtkastje op Regio-locater: ' + shareUrl)}" target="_blank" class="btn" style="background-color: #25D366; flex: 1;">💬 WhatsApp</a>
             <button onclick="reportKastje(${k.id})" class="btn btn-secondary" style="color: var(--danger); border-color: var(--danger);">⚠️ Rapporteren</button>
           </div>
           
