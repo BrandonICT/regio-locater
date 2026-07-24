@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=7.0">
+  <link rel="stylesheet" href="style.css?v=8.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -25,7 +25,6 @@
     }
     body.dark-theme .card { background-color: var(--card-bg); color: var(--text-main); border-color: var(--border-color); }
     
-    /* Printable Poster Style */
     @media print {
       body * { visibility: hidden; }
       #printablePoster, #printablePoster * { visibility: visible; }
@@ -68,16 +67,16 @@
       <form id="kastjeForm" onsubmit="saveKastje(event)" style="margin-top: 12px;">
         <input type="hidden" id="kastjeId">
         
-        <label>Naam van kastje / bieb</label>
+        <label for="naam">Naam van kastje / bieb</label>
         <input type="text" id="naam" required placeholder="Bijv. Buurtkastje De Groene Oase">
 
-        <label>Type</label>
+        <label for="type">Type</label>
         <select id="type">
           <option value="Buurtkastje">Buurtkastje</option>
           <option value="Minibieb">Minibieb</option>
         </select>
 
-        <label>Adres (volledig)</label>
+        <label for="adres">Adres (volledig)</label>
         <input type="text" id="adres" required placeholder="Bijv. Kerkstraat 10, Amsterdam">
 
         <label>🏷️ Categorieën (Selecteer wat van toepassing is)</label>
@@ -89,27 +88,27 @@
           <label><input type="checkbox" class="tag-check" value="Verzorging"> 🧼 Verzorging</label>
         </div>
 
-        <label>Status van voorraad</label>
+        <label for="status">Status van voorraad</label>
         <select id="status">
           <option value="Goed gevuld">Goed gevuld</option>
           <option value="Bijna leeg">Bijna leeg</option>
           <option value="Dringend vulhulp nodig">Dringend vulhulp nodig</option>
         </select>
 
-        <label>🕒 Openingstijden</label>
+        <label for="openingstijden">🕒 Openingstijden</label>
         <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend">
 
         <div style="margin: 12px 0;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
+          <label for="rolstoel_toegankelijk" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
             <input type="checkbox" id="rolstoel_toegankelijk" checked style="width: 20px; height: 20px;">
             ♿ Rolstoeltoegankelijk
           </label>
         </div>
 
-        <label>Wenslijst voor bezoekers</label>
+        <label for="wenslijst">Wenslijst voor bezoekers</label>
         <textarea id="wenslijst" rows="3" placeholder="Wat is er hard nodig?"></textarea>
 
-        <label>Afbeelding URL (Foto)</label>
+        <label for="foto_url">Afbeelding URL (Foto)</label>
         <input type="url" id="foto_url" placeholder="https://voorbeeld.nl/foto.jpg">
 
         <div style="display: flex; gap: 12px; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
