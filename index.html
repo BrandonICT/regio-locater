@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=13.0">
+  <link rel="stylesheet" href="style.css?v=20.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -64,9 +64,9 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #cbd5e1);
+      color: var(--text-main, #000);
       padding: 8px 14px;
       border-radius: 8px;
       font-weight: bold;
@@ -241,7 +241,7 @@
       await loadKastjes();
       loadActivityFeed();
 
-      // Check of er een direct id in de URL staat (?id=123)
+      // Check of er een specifieke id in de URL staat
       const urlParams = new URLSearchParams(window.location.search);
       const directId = urlParams.get('id');
       if (directId) {
@@ -617,6 +617,16 @@
     };
 
     checkUser();
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW geregistreerd!', reg))
+          .catch(err => console.error('SW Fout:', err));
+      });
+    }
   </script>
 </body>
 </html>
