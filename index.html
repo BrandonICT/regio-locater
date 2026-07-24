@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buurtkastjes & Minibiebs Regio</title>
 
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=4.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -74,15 +75,21 @@
       <button onclick="filterKastjes('alles')" class="btn btn-secondary active" id="filter-alles">Alles</button>
       <button onclick="filterKastjes('Buurtkastje')" class="btn btn-secondary" id="filter-kastjes">Kastjes</button>
       <button onclick="filterKastjes('Minibieb')" class="btn btn-secondary" id="filter-biebs">Biebs</button>
+      <button onclick="filterKastjes('Dringend')" class="btn btn-secondary" id="filter-dringend" style="border-color: var(--danger); color: var(--danger);">🚨 Dringend</button>
     </div>
   </div>
 
   <div id="container">
     <div id="map"></div>
     <div id="sidebar">
+      <div class="card" style="border-left: 4px solid var(--primary);">
+        <h3>⚡ Live Community Activiteit</h3>
+        <div id="activityFeed" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">Laden...</div>
+      </div>
+
       <div class="card">
         <h2>Selecteer een locatie</h2>
-        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om de details, foto, wenslijst en opties te bekijken.</p>
+        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om details, foto, wenslijst en opties te bekijken.</p>
       </div>
     </div>
   </div>
@@ -108,15 +115,8 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
 
-    function openDrawer() {
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawerOverlay').classList.add('open');
-    }
-
-    function closeDrawer() {
-      document.getElementById('drawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('open');
-    }
+    function openDrawer() { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
+    function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
 
     async function checkUser() {
       const { data: { session } } = await db.auth.getSession();
@@ -127,6 +127,7 @@
         document.getElementById('authModal').style.display = 'none';
         updateDrawerNav();
         loadKastjes();
+        loadActivityFeed();
       } else {
         document.getElementById('authModal').style.display = 'flex';
       }
@@ -165,20 +166,14 @@
 
     function updateDrawerNav() {
       document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong style="color:var(--text-main);">${currentUser.email}</strong><br>Rol: <em>${userProfile?.rol || 'bezoeker'}</em>`;
-      
       let html = `<button onclick="window.location.href='index.html'; closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
-      
       if (userProfile?.rol === 'eigenaar') {
         html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>`;
       }
-      
       document.getElementById('drawerMenuButtons').innerHTML = html;
     }
 
-    async function logout() {
-      await db.auth.signOut();
-      location.reload();
-    }
+    async function logout() { await db.auth.signOut(); location.reload(); }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371;
@@ -216,10 +211,28 @@
       }
     }
 
+    async function loadActivityFeed() {
+      const { data } = await db.from('inventaris').select('item, created_at, kastjes(naam)').eq('goedgekeurd', true).order('created_at', { ascending: false }).limit(3);
+      if (data && data.length > 0) {
+        document.getElementById('activityFeed').innerHTML = data.map(item => `
+          <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+            <strong>${item.kastjes?.naam || 'Kastje'}</strong>: ${item.item}
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('activityFeed').innerText = 'Nog geen recente activiteiten.';
+      }
+    }
+
     function renderMarkers(filter) {
       markersGroup.clearLayers();
       allKastjes.forEach(k => {
-        if (filter === 'alles' || k.type === filter) {
+        let match = false;
+        if (filter === 'alles') match = true;
+        else if (filter === 'Dringend') match = (k.status === 'Dringend vulhulp nodig' || k.status === 'Bijna leeg');
+        else match = (k.type === filter);
+
+        if (match) {
           const icon = k.type === 'Minibieb' ? blueIcon : greenIcon;
           const marker = L.marker([k.latitude, k.longitude], { icon }).addTo(markersGroup);
           marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}`);
@@ -233,6 +246,7 @@
       if (type === 'alles') document.getElementById('filter-alles').classList.add('active');
       if (type === 'Buurtkastje') document.getElementById('filter-kastjes').classList.add('active');
       if (type === 'Minibieb') document.getElementById('filter-biebs').classList.add('active');
+      if (type === 'Dringend') document.getElementById('filter-dringend').classList.add('active');
       renderMarkers(type);
     }
 
@@ -243,10 +257,6 @@
       let statusColor = '#10b981';
       if (k.status === 'Bijna leeg') statusColor = '#f59e0b';
       if (k.status === 'Dringend vulhulp nodig') statusColor = '#ef4444';
-
-      const lastUpdate = k.updated_at 
-        ? new Date(k.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })
-        : 'Onbekend';
 
       let distanceText = '';
       if (userCoords) {
@@ -274,7 +284,11 @@
           <h2>${k.naam}</h2>
           <p style="color: var(--text-muted); margin-top: 4px;"><b>Adres:</b> ${k.adres}</p>
           ${distanceText}
-          <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 6px;">Laatst bijgewerkt: ${lastUpdate}</p>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button onclick="sendThanks(${k.id}, ${k.bedankjes || 0})" class="btn btn-secondary" style="flex: 1;">💚 Bedanken (${k.bedankjes || 0})</button>
+            <button onclick="toggleFavorite(${k.id})" class="btn btn-secondary" style="flex: 1;">⭐ Bewaren</button>
+          </div>
           
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route">Route via Google Maps</a>
         </div>
@@ -287,19 +301,42 @@
         <div class="card">
           <h3>Actuele Voorraad</h3>
           <div style="margin-top: 10px;">${itemsListHtml}</div>
-          
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          
-          <h4 style="font-size: 0.9rem; margin-bottom: 6px; color: var(--text-main);">Meld wat je gebracht of gezien hebt:</h4>
+          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">Meld wat je gebracht hebt:</h4>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
+
+        <div class="card" style="text-align: center;">
+          <h3>📱 QR-Code voor dit kastje</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">Plak deze QR op het kastje zodat voorbijgangers direct dit kastje openen.</p>
+          <div id="qrcode" style="display:flex; justify-content:center; margin-bottom:10px;"></div>
+        </div>
       `;
 
-      // Vloeiend scrollen naar de details op mobiele schermen
-      if (window.innerWidth <= 768) {
-        sidebarEl.scrollIntoView({ behavior: 'smooth' });
+      // Genereer QR code direct
+      new QRCode(document.getElementById("qrcode"), {
+        text: window.location.origin + window.location.pathname + "?id=" + k.id,
+        width: 128,
+        height: 128
+      });
+
+      if (window.innerWidth <= 768) sidebarEl.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function sendThanks(kastjeId, currentThanks) {
+      const { error } = await db.from('kastjes').update({ bedankjes: currentThanks + 1 }).eq('id', kastjeId);
+      if (!error) {
+        alert('Bedankje verstuurd naar de eigenaar! 💚');
+        loadKastjes();
       }
+    }
+
+    async function toggleFavorite(kastjeId) {
+      if (!currentUser) return alert('Log eerst in om favorieten op te slaan.');
+      const { error } = await db.from('favorieten').insert([{ user_id: currentUser.id, kastje_id: kastjeId }]);
+      if (!error) alert('Kastje opgeslagen in je favorieten! ⭐');
+      else alert('Kastje staat al in je favorieten.');
     }
 
     async function submitVisitorItem(kastjeId) {
@@ -322,8 +359,5 @@
 
     checkUser();
   </script>
-  <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
-  <p>© 2026 BrandonICT / Regio-locater. Alle rechten voorbehouden.</p>
-</footer>
 </body>
 </html>
