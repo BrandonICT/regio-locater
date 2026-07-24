@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=10.0">
+  <link rel="stylesheet" href="style.css?v=12.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -94,6 +94,9 @@
           <option value="Bijna leeg">Bijna leeg</option>
           <option value="Dringend vulhulp nodig">Dringend vulhulp nodig</option>
         </select>
+
+        <label for="status_update">📢 Snelle Status-update voor bezoekers</label>
+        <input type="text" id="status_update" placeholder="Bijv. Net vers brood en fruit neergezet!">
 
         <label for="openingstijden">🕒 Openingstijden</label>
         <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend">
@@ -199,7 +202,7 @@
       document.getElementById('posterAddress').innerText = k.adres;
       document.getElementById('posterQrCode').innerHTML = '';
       
-      const shareUrl = window.location.origin + '/index.html?id=' + k.id;
+      const shareUrl = window.location.href.replace('admin.html', 'index.html') + '?id=' + k.id;
       new QRCode(document.getElementById("posterQrCode"), { text: shareUrl, width: 200, height: 200 });
 
       const posterEl = document.getElementById('printablePoster');
@@ -214,6 +217,7 @@
       document.getElementById('type').value = k.type || 'Buurtkastje';
       document.getElementById('adres').value = k.adres || '';
       document.getElementById('status').value = k.status || 'Goed gevuld';
+      document.getElementById('status_update').value = k.status_update || '';
       document.getElementById('openingstijden').value = k.openingstijden || '24/7 geopend';
       document.getElementById('rolstoel_toegankelijk').checked = k.rolstoel_toegankelijk !== false;
       document.getElementById('wenslijst').value = k.wenslijst || '';
@@ -259,6 +263,7 @@
         longitude: lon,
         categorieën: selectedTags,
         status: document.getElementById('status').value,
+        status_update: document.getElementById('status_update').value,
         openingstijden: document.getElementById('openingstijden').value || '24/7 geopend',
         rolstoel_toegankelijk: document.getElementById('rolstoel_toegankelijk').checked,
         wenslijst: document.getElementById('wenslijst').value,
