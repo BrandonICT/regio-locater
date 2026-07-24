@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=21.0">
+  <link rel="stylesheet" href="style.css?v=22.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -90,6 +90,13 @@
     }
     .fav-item-btn:hover {
       background: var(--bg-main);
+    }
+    .photo-upload-box {
+      border: 1px dashed var(--border-color, #cbd5e1);
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      background: var(--bg-main, #f8fafc);
     }
   </style>
 </head>
@@ -252,6 +259,16 @@
       document.getElementById('drawerOverlay').classList.add('open'); 
     }
     function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
+
+    // Helper om een gekozen foto om te zetten naar Base64 data (zodat geen URL nodig is)
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
 
     // Favorieten Functionaliteit
     function getFavorites() {
@@ -620,7 +637,14 @@
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
           <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Wat heb je gebracht/gezien?</h4>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 boeken / 3 blikken soep neergezet" style="margin-bottom: 8px;" aria-label="Melding">
-          <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;" aria-label="Foto URL">
+          
+          <div class="photo-upload-box">
+            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">📷 Foto toevoegen (Optioneel):</label>
+            <input type="file" id="visitorPhotoFileInput" accept="image/*" style="font-size: 0.8rem; margin-bottom: 6px;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin: 4px 0;">— of via web-link —</div>
+            <input type="url" id="visitorPhotoInput" placeholder="https://voorbeeld.nl/foto.jpg" style="margin-bottom: 0;" aria-label="Foto URL">
+          </div>
+
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Meld aan de buurt</button>
         </div>
 
@@ -656,8 +680,20 @@
 
     async function submitVisitorItem(kastjeId) {
       const itemText = document.getElementById('visitorItemInput').value.trim();
-      const fotoUrl = document.getElementById('visitorPhotoInput').value.trim();
+      const fileInput = document.getElementById('visitorPhotoFileInput');
+      let fotoUrl = document.getElementById('visitorPhotoInput').value.trim();
+
       if (!itemText) return alert('Vul eerst een melding in.');
+
+      // Check of er een lokaal bestand gekozen is
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        try {
+          fotoUrl = await fileToBase64(fileInput.files[0]);
+        } catch (e) {
+          alert('Fout bij verwerken van foto-bestand.');
+          return;
+        }
+      }
 
       const { error } = await db.from('inventaris').insert([{
         kastje_id: kastjeId,
