@@ -8,38 +8,36 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=6.0">
+  <link rel="stylesheet" href="style.css?v=7.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <style>
-    /* Zorgt ervoor dat scrollen ALTIJD werkt op alle apparaten */
-    html, body {
-      overflow-y: auto !important;
-      height: auto !important;
-      min-height: 100vh;
+    html, body { overflow-y: auto !important; height: auto !important; min-height: 100vh; }
+    body.dark-theme {
+      --bg-main: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+    }
+    body.dark-theme .card { background-color: var(--card-bg); color: var(--text-main); border-color: var(--border-color); }
+    
+    /* Printable Poster Style */
+    @media print {
+      body * { visibility: hidden; }
+      #printablePoster, #printablePoster * { visibility: visible; }
+      #printablePoster { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; text-align: center; }
     }
   </style>
 </head>
 <body style="padding-bottom: 50px;">
 
-  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
-  <div id="drawer" class="drawer">
-    <div class="drawer-header">
-      <h2>Menu</h2>
-      <button class="close-btn" onclick="closeDrawer()">✕</button>
-    </div>
-    <div class="drawer-content">
-      <div id="drawerUserInfo" style="padding: 12px; background: var(--bg-main); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted);"></div>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button onclick="window.location.href='index.html'" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>
-        <button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>
-      </div>
-      <button onclick="logout()" class="btn btn-logout" style="margin-top: 15px;">Uitloggen</button>
-    </div>
-  </div>
-
   <header>
     <h1>⚙️ Eigenaar Dashboard</h1>
-    <button class="menu-toggle-btn" onclick="openDrawer()">☰ Opties</button>
+    <button onclick="window.location.href='index.html'" class="btn btn-secondary">📍 Kaart</button>
   </header>
 
   <div style="max-width: 900px; margin: 20px auto; padding: 0 15px;">
@@ -69,8 +67,6 @@
       <h2 id="formTitle">➕ Nieuw Kastje / Bieb Toevoegen</h2>
       <form id="kastjeForm" onsubmit="saveKastje(event)" style="margin-top: 12px;">
         <input type="hidden" id="kastjeId">
-        <input type="hidden" id="latitude">
-        <input type="hidden" id="longitude">
         
         <label>Naam van kastje / bieb</label>
         <input type="text" id="naam" required placeholder="Bijv. Buurtkastje De Groene Oase">
@@ -84,6 +80,15 @@
         <label>Adres (volledig)</label>
         <input type="text" id="adres" required placeholder="Bijv. Kerkstraat 10, Amsterdam">
 
+        <label>🏷️ Categorieën (Selecteer wat van toepassing is)</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0;">
+          <label><input type="checkbox" class="tag-check" value="Voedsel"> 🍎 Voedsel</label>
+          <label><input type="checkbox" class="tag-check" value="Boeken"> 📚 Boeken</label>
+          <label><input type="checkbox" class="tag-check" value="Planten/Zaden"> 🌱 Planten/Zaden</label>
+          <label><input type="checkbox" class="tag-check" value="Kleding"> 👕 Kleding</label>
+          <label><input type="checkbox" class="tag-check" value="Verzorging"> 🧼 Verzorging</label>
+        </div>
+
         <label>Status van voorraad</label>
         <select id="status">
           <option value="Goed gevuld">Goed gevuld</option>
@@ -92,7 +97,7 @@
         </select>
 
         <label>🕒 Openingstijden</label>
-        <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend, of Dagelijks van 08:00 - 20:00">
+        <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend">
 
         <div style="margin: 12px 0;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
@@ -102,7 +107,7 @@
         </div>
 
         <label>Wenslijst voor bezoekers</label>
-        <textarea id="wenslijst" rows="3" placeholder="Wat is er op dit moment hard nodig?"></textarea>
+        <textarea id="wenslijst" rows="3" placeholder="Wat is er hard nodig?"></textarea>
 
         <label>Afbeelding URL (Foto)</label>
         <input type="url" id="foto_url" placeholder="https://voorbeeld.nl/foto.jpg">
@@ -119,12 +124,16 @@
       <div id="myKastjesList" style="margin-top: 12px;">Laden...</div>
     </div>
 
-    <div class="card">
-      <h2>📬 Ingediende Meldingen Keuren</h2>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Keur meldingen goed die door bezoekers zijn doorgegeven.</p>
-      <div id="pendingItemsList">Laden...</div>
-    </div>
+  </div>
 
+  <div id="printablePoster" style="display: none; background: white; color: black; border: 4px solid #10b981; border-radius: 16px; margin: 20px auto; max-width: 600px; padding: 30px;">
+    <h1 style="color: #10b981; font-size: 2.2rem; margin-bottom: 10px;" id="posterTitle">Buurtkastje</h1>
+    <p style="font-size: 1.2rem; color: #475569;" id="posterAddress">Adres</p>
+    <hr style="margin: 20px 0; border-top: 2px dashed #cbd5e1;">
+    <p style="font-size: 1.1rem; margin-bottom: 15px;">Scan de QR-code met je telefoon om te zien wat er nu op voorraad is of om spullen te melden!</p>
+    <div id="posterQrCode" style="display: flex; justify-content: center; margin: 20px 0;"></div>
+    <p style="font-size: 0.9rem; color: #64748b;">Mogelijk gemaakt door <strong>Regio-locater</strong></p>
+    <button onclick="window.print()" class="btn" style="margin-top: 20px;">🖨️ Print deze Poster</button>
   </div>
 
   <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
@@ -135,8 +144,7 @@
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
     let currentUser = null, userProfile = null;
 
-    function openDrawer() { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
-    function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-theme');
 
     async function initAdmin() {
       const { data: { session } } = await db.auth.getSession();
@@ -147,33 +155,19 @@
       userProfile = profile;
 
       if (userProfile?.rol !== 'eigenaar') {
-        alert('Geen toegang. Dit scherm is alleen voor eigenaren.');
+        alert('Geen toegang.');
         return window.location.href = 'index.html';
       }
 
-      document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong>${currentUser.email}</strong>`;
-
       loadDashboardStats();
       loadMyKastjes();
-      loadPendingItems();
     }
 
     async function loadDashboardStats() {
       const { data: kastjes } = await db.from('kastjes').select('id, bedankjes').eq('eigenaar_id', currentUser.id);
-      
-      let totalThanks = 0;
-      let kastjeIds = [];
-
       if (kastjes) {
-        kastjeIds = kastjes.map(k => k.id);
-        totalThanks = kastjes.reduce((sum, k) => sum + (k.bedankjes || 0), 0);
         document.getElementById('statKastjes').innerText = kastjes.length;
-        document.getElementById('statThanks').innerText = totalThanks;
-      }
-
-      if (kastjeIds.length > 0) {
-        const { count } = await db.from('inventaris').select('*', { count: 'exact', head: true }).in('kastje_id', kastjeIds);
-        document.getElementById('statItems').innerText = count || 0;
+        document.getElementById('statThanks').innerText = kastjes.reduce((s, k) => s + (k.bedankjes || 0), 0);
       }
     }
 
@@ -190,15 +184,28 @@
         <div style="border:1px solid var(--border-color); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
             <strong>${k.naam}</strong> (${k.type || 'Buurtkastje'})<br>
-            <span style="font-size:0.85rem; color:var(--text-muted);">${k.adres}</span><br>
-            <span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">🕒 ${k.openingstijden || '24/7 geopend'} | ♿ ${k.rolstoel_toegankelijk !== false ? 'Toegankelijk' : 'Niet toegankelijk'}</span>
+            <span style="font-size:0.85rem; color:var(--text-muted);">${k.adres}</span>
           </div>
           <div style="display:flex; gap:8px;">
+            <button onclick='generatePoster(${JSON.stringify(k)})' class="btn" style="padding:6px 12px; font-size:0.85rem; background-color:#0284c7;">📄 Poster</button>
             <button onclick='editKastje(${JSON.stringify(k)})' class="btn btn-secondary" style="padding:6px 12px; font-size:0.85rem;">✏️ Bewerken</button>
             <button onclick="deleteKastje(${k.id})" class="btn" style="padding:6px 12px; font-size:0.85rem; background-color:var(--danger);">🗑️ Verwijderen</button>
           </div>
         </div>
       `).join('');
+    }
+
+    function generatePoster(k) {
+      document.getElementById('posterTitle').innerText = k.naam;
+      document.getElementById('posterAddress').innerText = k.adres;
+      document.getElementById('posterQrCode').innerHTML = '';
+      
+      const shareUrl = window.location.origin + '/index.html?id=' + k.id;
+      new QRCode(document.getElementById("posterQrCode"), { text: shareUrl, width: 200, height: 200 });
+
+      const posterEl = document.getElementById('printablePoster');
+      posterEl.style.display = 'block';
+      posterEl.scrollIntoView({ behavior: 'smooth' });
     }
 
     function editKastje(k) {
@@ -207,13 +214,15 @@
       document.getElementById('naam').value = k.naam || '';
       document.getElementById('type').value = k.type || 'Buurtkastje';
       document.getElementById('adres').value = k.adres || '';
-      document.getElementById('latitude').value = k.latitude || '';
-      document.getElementById('longitude').value = k.longitude || '';
       document.getElementById('status').value = k.status || 'Goed gevuld';
       document.getElementById('openingstijden').value = k.openingstijden || '24/7 geopend';
       document.getElementById('rolstoel_toegankelijk').checked = k.rolstoel_toegankelijk !== false;
       document.getElementById('wenslijst').value = k.wenslijst || '';
       document.getElementById('foto_url').value = k.foto_url || '';
+
+      document.querySelectorAll('.tag-check').forEach(cb => {
+        cb.checked = k.categorieën && k.categorieën.includes(cb.value);
+      });
 
       document.getElementById('submitBtn').innerText = '💾 Wijzigingen Opslaan';
       document.getElementById('formCard').scrollIntoView({ behavior: 'smooth' });
@@ -223,8 +232,6 @@
       document.getElementById('formTitle').innerText = '➕ Nieuw Kastje / Bieb Toevoegen';
       document.getElementById('kastjeForm').reset();
       document.getElementById('kastjeId').value = '';
-      document.getElementById('latitude').value = '';
-      document.getElementById('longitude').value = '';
       document.getElementById('submitBtn').innerText = '💾 Opslaan';
     }
 
@@ -232,26 +239,18 @@
       e.preventDefault();
       const id = document.getElementById('kastjeId').value;
       const adresText = document.getElementById('adres').value;
-      let lat = parseFloat(document.getElementById('latitude').value);
-      let lon = parseFloat(document.getElementById('longitude').value);
+      
+      const selectedTags = Array.from(document.querySelectorAll('.tag-check:checked')).map(cb => cb.value);
 
-      // Zelf coördinaten ophalen via OpenStreetMap als ze niet bekend zijn
-      if (!lat || !lon) {
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adresText)}`);
-          const geoData = await res.json();
-          if (geoData && geoData.length > 0) {
-            lat = parseFloat(geoData[0].lat);
-            lon = parseFloat(geoData[0].lon);
-          } else {
-            alert("Kon het adres niet automatisch vinden op de kaart. Controleer het adres.");
-            return;
-          }
-        } catch (err) {
-          alert("Fout bij het ophalen van adrescoördinaten.");
-          return;
+      let lat = 52.3676, lon = 4.9041;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adresText)}`);
+        const geoData = await res.json();
+        if (geoData && geoData.length > 0) {
+          lat = parseFloat(geoData[0].lat);
+          lon = parseFloat(geoData[0].lon);
         }
-      }
+      } catch (err) {}
 
       const kastjeData = {
         naam: document.getElementById('naam').value,
@@ -259,6 +258,7 @@
         adres: adresText,
         latitude: lat,
         longitude: lon,
+        categorieën: selectedTags,
         status: document.getElementById('status').value,
         openingstijden: document.getElementById('openingstijden').value || '24/7 geopend',
         rolstoel_toegankelijk: document.getElementById('rolstoel_toegankelijk').checked,
@@ -268,13 +268,11 @@
       };
 
       if (id) {
-        const { error } = await db.from('kastjes').update(kastjeData).eq('id', id);
-        if (!error) alert('Kastje succesvol bijgewerkt!');
-        else alert('Fout bij bijwerken: ' + error.message);
+        await db.from('kastjes').update(kastjeData).eq('id', id);
+        alert('Kastje bijgewerkt!');
       } else {
-        const { error } = await db.from('kastjes').insert([kastjeData]);
-        if (!error) alert('Nieuw kastje toegevoegd!');
-        else alert('Fout bij toevoegen: ' + error.message);
+        await db.from('kastjes').insert([kastjeData]);
+        alert('Nieuw kastje toegevoegd!');
       }
 
       resetForm();
@@ -284,61 +282,11 @@
 
     async function deleteKastje(id) {
       if (confirm('Weet je zeker dat je dit kastje wilt verwijderen?')) {
-        const { error } = await db.from('kastjes').delete().eq('id', id);
-        if (!error) {
-          alert('Kastje verwijderd.');
-          loadDashboardStats();
-          loadMyKastjes();
-        } else {
-          alert('Fout bij verwijderen: ' + error.message);
-        }
+        await db.from('kastjes').delete().eq('id', id);
+        loadDashboardStats();
+        loadMyKastjes();
       }
     }
-
-    async function loadPendingItems() {
-      const { data: myKastjes } = await db.from('kastjes').select('id, naam').eq('eigenaar_id', currentUser.id);
-      const container = document.getElementById('pendingItemsList');
-
-      if (!myKastjes || myKastjes.length === 0) {
-        container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Geen kastjes gevonden.</p>';
-        return;
-      }
-
-      const ids = myKastjes.map(k => k.id);
-      const { data: items } = await db.from('inventaris').select('id, item, created_at, kastje_id').in('kastje_id', ids).eq('goedgekeurd', false);
-
-      if (!items || items.length === 0) {
-        container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Er staan op dit moment geen ongekeurde meldingen open.</p>';
-        return;
-      }
-
-      container.innerHTML = items.map(item => {
-        const kastje = myKastjes.find(k => k.id === item.kastje_id);
-        return `
-          <div style="border:1px solid var(--border-color); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <strong>${kastje?.naam || 'Kastje'}</strong>: ${item.item}
-            </div>
-            <div style="display:flex; gap:6px;">
-              <button onclick="approveItem(${item.id}, true)" class="btn" style="padding:4px 10px; font-size:0.8rem;">Goedgekeurd</button>
-              <button onclick="approveItem(${item.id}, false)" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem; color:var(--danger);">Afwijzen</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function approveItem(id, approve) {
-      if (approve) {
-        await db.from('inventaris').update({ goedgekeurd: true }).eq('id', id);
-      } else {
-        await db.from('inventaris').delete().eq('id', id);
-      }
-      loadPendingItems();
-      loadDashboardStats();
-    }
-
-    async function logout() { await db.auth.signOut(); window.location.href = 'index.html'; }
 
     initAdmin();
   </script>
