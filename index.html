@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buurtkastjes & Minibiebs Regio</title>
 
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+
+  <link rel="stylesheet" href="style.css?v=5.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -95,6 +98,11 @@
   </div>
 
   <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
     let map, isLoginMode = false, currentUser = null, userProfile = null;
     let allKastjes = [], markersGroup = L.layerGroup(), userMarker = null, userCoords = null;
@@ -272,6 +280,8 @@
           approvedItems.map(i => `<li style="margin-bottom: 4px;">${i.item}</li>`).join('') + '</ul>';
       }
 
+      const shareUrl = window.location.origin + window.location.pathname + '?id=' + k.id;
+
       const sidebarEl = document.getElementById('sidebar');
       sidebarEl.innerHTML = `
         <div class="card">
@@ -283,11 +293,19 @@
           
           <h2>${k.naam}</h2>
           <p style="color: var(--text-muted); margin-top: 4px;"><b>Adres:</b> ${k.adres}</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">🕒 <b>Openingstijden:</b> ${k.openingstijden || '24/7 geopend'}</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">♿ <b>Rolstoeltoegankelijk:</b> ${k.rolstoel_toegankelijk !== false ? 'Ja' : 'Nee'}</p>
+          
           ${distanceText}
 
           <div style="display: flex; gap: 8px; margin-top: 12px;">
             <button onclick="sendThanks(${k.id}, ${k.bedankjes || 0})" class="btn btn-secondary" style="flex: 1;">💚 Bedanken (${k.bedankjes || 0})</button>
             <button onclick="toggleFavorite(${k.id})" class="btn btn-secondary" style="flex: 1;">⭐ Bewaren</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <a href="https://api.whatsapp.com/send?text=${encodeURIComponent('Bekijk dit buurtkastje: ' + shareUrl)}" target="_blank" class="btn" style="background-color: #25D366; flex: 1;">💬 WhatsApp</a>
+            <button onclick="reportKastje(${k.id})" class="btn btn-secondary" style="color: var(--danger); border-color: var(--danger);">⚠️ Rapporteren</button>
           </div>
           
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route">Route via Google Maps</a>
@@ -314,14 +332,17 @@
         </div>
       `;
 
-      // Genereer QR code direct
-      new QRCode(document.getElementById("qrcode"), {
-        text: window.location.origin + window.location.pathname + "?id=" + k.id,
-        width: 128,
-        height: 128
-      });
-
+      new QRCode(document.getElementById("qrcode"), { text: shareUrl, width: 128, height: 128 });
       if (window.innerWidth <= 768) sidebarEl.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function reportKastje(kastjeId) {
+      const reden = prompt("Waarom wil je dit kastje rapporteren? (Bijv: gesloopt, bestaat niet meer, spam)");
+      if (reden) {
+        const { error } = await db.from('rapportages').insert([{ kastje_id: kastjeId, reden }]);
+        if (!error) alert("Bedankt! De melding is doorgestuurd naar de beheerders.");
+        else alert("Fout bij versturen: " + error.message);
+      }
     }
 
     async function sendThanks(kastjeId, currentThanks) {
