@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=12.0">
+  <link rel="stylesheet" href="style.css?v=13.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -60,6 +60,19 @@
       margin-bottom: 5px;
       border: 1px solid #facc15;
     }
+    .back-to-map-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -108,17 +121,16 @@
       <div id="drawerMenuButtons" style="display: flex; flex-direction: column; gap: 8px;"></div>
       
       <button onclick="toggleDarkMode()" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">🌙 Dark Mode In/Uitschakelen</button>
-      
       <button onclick="logout()" class="btn btn-logout" style="margin-top: 10px;">Uitloggen</button>
     </div>
   </div>
 
   <header>
-    <h1>Regio-locater</h1>
+    <h1 onclick="resetToHome()" style="cursor: pointer;">Regio-locater</h1>
     <button class="menu-toggle-btn" onclick="openDrawer()">☰ Opties</button>
   </header>
 
-  <div class="search-container">
+  <div class="search-container" id="searchContainer">
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;" aria-label="Zoeken">
       <button onclick="searchLocation()" class="btn">Zoeken</button>
@@ -171,9 +183,9 @@
         <div id="activityFeed" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">Laden...</div>
       </div>
 
-      <div class="card">
+      <div class="card" id="defaultSidebarCard">
         <h2>Selecteer een locatie</h2>
-        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om details, foto, wenslijst en het gastenboek te bekijken.</p>
+        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om de unieke pagina en live voorraad te bekijken.</p>
       </div>
     </div>
   </div>
@@ -226,8 +238,35 @@
           document.getElementById('authModal').style.display = 'flex';
         }
       } catch (e) {}
-      loadKastjes();
+      await loadKastjes();
       loadActivityFeed();
+
+      // Check of er een direct id in de URL staat (?id=123)
+      const urlParams = new URLSearchParams(window.location.search);
+      const directId = urlParams.get('id');
+      if (directId) {
+        const targetKastje = allKastjes.find(k => k.id == directId);
+        if (targetKastje) {
+          showDetails(targetKastje, false);
+        }
+      }
+    }
+
+    function resetToHome() {
+      window.history.pushState({}, '', window.location.pathname);
+      document.title = "Regio-locater | Buurtkastjes & Minibiebs";
+      document.getElementById('sidebar').innerHTML = `
+        <div class="card" style="border-left: 4px solid var(--primary);">
+          <h3>⚡ Live Community Activiteit</h3>
+          <div id="activityFeed" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">Laden...</div>
+        </div>
+        <div class="card" id="defaultSidebarCard">
+          <h2>Selecteer een locatie</h2>
+          <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om de unieke pagina en live voorraad te bekijken.</p>
+        </div>
+      `;
+      loadActivityFeed();
+      map.setView([52.3676, 4.9041], 12);
     }
 
     function toggleAuthMode() {
@@ -264,7 +303,7 @@
     function updateDrawerNav() {
       if (!currentUser) return;
       document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong style="color:var(--text-main);">${currentUser.email}</strong><br>Rol: <em>${userProfile?.rol || 'bezoeker'}</em>`;
-      let html = `<button onclick="window.location.href='index.html'; closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
+      let html = `<button onclick="resetToHome(); closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
       
       if (userProfile?.rol === 'eigenaar') {
         html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>`;
@@ -290,7 +329,6 @@
         if (userMarker) map.removeLayer(userMarker);
         userMarker = L.circleMarker([userCoords.lat, userCoords.lon], { color: '#0284c7', fillColor: '#38bdf8', fillOpacity: 0.8, radius: 9 }).addTo(map);
         
-        // Sorteer kastjes op afstand als GPS aan staat
         allKastjes.sort((a, b) => {
           let distA = getDistanceKm(userCoords.lat, userCoords.lon, a.latitude, a.longitude);
           let distB = getDistanceKm(userCoords.lat, userCoords.lon, b.latitude, b.longitude);
@@ -320,18 +358,19 @@
     async function loadActivityFeed() {
       try {
         const { data } = await db.from('inventaris').select('item, created_at, kastjes(naam)').order('created_at', { ascending: false }).limit(3);
-        if (data && data.length > 0) {
-          document.getElementById('activityFeed').innerHTML = data.map(item => `
-            <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
-              <strong>${item.kastjes?.naam || 'Kastje'}</strong>: ${item.item}
-            </div>
-          `).join('');
-        } else {
-          document.getElementById('activityFeed').innerText = 'Nog geen recente activiteiten.';
+        const feedEl = document.getElementById('activityFeed');
+        if (feedEl) {
+          if (data && data.length > 0) {
+            feedEl.innerHTML = data.map(item => `
+              <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+                <strong>${item.kastjes?.naam || 'Kastje'}</strong>: ${item.item}
+              </div>
+            `).join('');
+          } else {
+            feedEl.innerText = 'Nog geen recente activiteiten.';
+          }
         }
-      } catch (e) {
-        document.getElementById('activityFeed').innerText = 'Geen recente activiteit.';
-      }
+      } catch (e) {}
     }
 
     function applyFilters() {
@@ -373,7 +412,7 @@
           }
 
           marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}${distText}`);
-          marker.on('click', () => showDetails(k));
+          marker.on('click', () => showDetails(k, true));
         }
       });
     }
@@ -388,7 +427,15 @@
       applyFilters();
     }
 
-    async function showDetails(k) {
+    async function showDetails(k, updateUrl = true) {
+      if (updateUrl) {
+        const newUrl = window.location.pathname + '?id=' + k.id;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+      }
+      
+      document.title = `${k.naam} | Regio-locater`;
+      map.setView([k.latitude, k.longitude], 15);
+
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
       const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${k.latitude},${k.longitude}`;
       
@@ -397,7 +444,6 @@
         tagsHtml = k.categorieën.map(t => `<span class="tag-badge">🏷️ ${t}</span>`).join('');
       }
 
-      // 🏆 Badges & Mijlpalen berekenen
       let achievementsHtml = '';
       if ((k.bedankjes || 0) >= 10) achievementsHtml += `<span class="achievement-badge">🌟 Top Locatie (10+ 💚)</span>`;
       if ((k.bedankjes || 0) >= 25) achievementsHtml += `<span class="achievement-badge">👑 Buurtheld (25+ 💚)</span>`;
@@ -405,20 +451,20 @@
 
       let approvedItems = [];
       try {
-        const res = await db.from('inventaris').select('item, foto_url').eq('kastje_id', k.id);
+        const res = await db.from('inventaris').select('item, foto_url, created_at').eq('kastje_id', k.id).order('created_at', { ascending: false });
         if (res.data) approvedItems = res.data;
       } catch(e) {}
 
       let reacties = [];
       try {
-        const res = await db.from('reacties').select('*').eq('kastje_id', k.id).order('created_at', { ascending: false }).limit(5);
+        const res = await db.from('reacties').select('*').eq('kastje_id', k.id).order('created_at', { ascending: false }).limit(10);
         if (res.data) reacties = res.data;
       } catch(e) {}
 
-      let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen recente meldingen van bezoekers.</p>';
+      let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen recente meldingen van voorraad.</p>';
       if (approvedItems && approvedItems.length > 0) {
         itemsListHtml = '<ul style="margin-left: 18px; font-size: 0.9rem; color: var(--text-main);">' + 
-          approvedItems.map(i => `<li style="margin-bottom: 4px;">${i.item} ${i.foto_url ? `<br><img src="${i.foto_url}" style="width:100px; border-radius:6px; margin-top:4px;">` : ''}</li>`).join('') + '</ul>';
+          approvedItems.map(i => `<li style="margin-bottom: 6px;"><strong>${i.item}</strong> ${i.foto_url ? `<br><img src="${i.foto_url}" style="width:100px; border-radius:6px; margin-top:4px;">` : ''}</li>`).join('') + '</ul>';
       }
 
       let reactiesHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen reacties geplaatst.</p>';
@@ -430,21 +476,22 @@
         `).join('');
       }
 
-      // Eigenaar status update
       let statusUpdateHtml = '';
       if (k.status_update) {
         statusUpdateHtml = `
           <div style="background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.85rem;">
-            <strong>📢 Bericht van de Eigenaar:</strong><br>
+            <strong>📢 Status-update van de eigenaar:</strong><br>
             "${k.status_update}"
           </div>
         `;
       }
 
-      const shareUrl = window.location.href.split('?')[0] + '?id=' + k.id;
+      const shareUrl = window.location.origin + window.location.pathname + '?id=' + k.id;
 
       const sidebarEl = document.getElementById('sidebar');
       sidebarEl.innerHTML = `
+        <button onclick="resetToHome()" class="back-to-map-btn">← Terug naar overzicht</button>
+
         <div class="card">
           ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:12px; margin-bottom:12px;">` : ''}
           <div>
@@ -458,26 +505,33 @@
           
           ${statusUpdateHtml}
 
-          <p style="color: var(--text-muted); margin-top: 8px;"><b>Adres:</b> ${k.adres}</p>
+          <p style="color: var(--text-muted); margin-top: 8px;"><b>📍 Adres:</b> ${k.adres}</p>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">🕒 <b>Openingstijden:</b> ${k.openingstijden || '24/7 geopend'}</p>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">♿ <b>Rolstoeltoegankelijk:</b> ${k.rolstoel_toegankelijk !== false ? 'Ja' : 'Nee'}</p>
 
+          ${k.wenslijst ? `
+            <div style="margin-top:10px; background:var(--bg-main); padding:10px; border-radius:8px; border-left:3px solid var(--primary);">
+              <strong>🎁 Wenslijst van Eigenaar:</strong><br>
+              <span style="font-size:0.85rem; color:var(--text-muted);">${k.wenslijst}</span>
+            </div>
+          ` : ''}
+
           <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
             <button onclick="sendThanks(${k.id}, ${k.bedankjes || 0})" class="btn btn-secondary" style="flex: 1;">💚 Bedanken (${k.bedankjes || 0})</button>
-            <button onclick="reportUrgent(${k.id})" class="btn" style="background: #ef4444; color: white;">🚨 Dringend Meld Alarm</button>
+            <button onclick="reportUrgent(${k.id})" class="btn" style="background: #ef4444; color: white;">🚨 Hulp Nodig</button>
           </div>
 
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route" style="display:block; text-align:center; text-decoration:none; margin-top:8px;">Route via Google Maps</a>
         </div>
         
         <div class="card">
-          <h3>Actuele Voorraad</h3>
+          <h3>📦 Live Voorraad & Inhoud</h3>
           <div style="margin-top: 10px;">${itemsListHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je gebracht hebt:</h4>
-          <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;" aria-label="Melding">
+          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Wat heb je gebracht/gezien?</h4>
+          <input type="text" id="visitorItemInput" placeholder="Bijv. 2 boeken / 3 blikken soep neergezet" style="margin-bottom: 8px;" aria-label="Melding">
           <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;" aria-label="Foto URL">
-          <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
+          <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Meld aan de buurt</button>
         </div>
 
         <div class="card">
@@ -485,12 +539,13 @@
           <div style="margin-top: 10px;">${reactiesHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
           <input type="text" id="reactieNaam" placeholder="Jouw naam (optioneel)" style="margin-bottom: 6px;" aria-label="Naam">
-          <textarea id="reactieBericht" rows="2" placeholder="Laat een lief berichtje achter..." style="margin-bottom: 8px;" aria-label="Bericht"></textarea>
+          <textarea id="reactieBericht" rows="2" placeholder="Laat een leuk berichtje achter..." style="margin-bottom: 8px;" aria-label="Bericht"></textarea>
           <button onclick="submitReactie(${k.id})" class="btn btn-secondary" style="width: 100%;">Bericht Plaatsen</button>
         </div>
 
         <div class="card" style="text-align: center;">
-          <h3>📱 QR-Code voor dit kastje</h3>
+          <h3>📱 QR-Code van deze pagina</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Scan om direct op deze specifieke pagina uit te komen:</p>
           <div id="qrcode" style="display:flex; justify-content:center; margin: 10px 0;"></div>
         </div>
       `;
@@ -522,7 +577,8 @@
 
       if (!error) {
         alert('Melding verstuurd!');
-        loadKastjes();
+        const target = allKastjes.find(k => k.id === kastjeId);
+        if (target) showDetails(target, false);
       } else alert('Fout bij versturen: ' + error.message);
     }
 
@@ -534,14 +590,31 @@
       const { error } = await db.from('reacties').insert([{ kastje_id: kastjeId, naam, bericht }]);
       if (!error) {
         alert('Bericht geplaatst!');
-        loadKastjes();
+        const target = allKastjes.find(k => k.id === kastjeId);
+        if (target) showDetails(target, false);
       } else alert('Fout: ' + error.message);
     }
 
     async function sendThanks(kastjeId, currentThanks) {
       const { error } = await db.from('kastjes').update({ bedankjes: currentThanks + 1 }).eq('id', kastjeId);
-      if (!error) { alert('Bedankje verstuurd! 💚'); loadKastjes(); }
+      if (!error) { 
+        alert('Bedankje verstuurd! 💚'); 
+        await loadKastjes();
+        const target = allKastjes.find(k => k.id === kastjeId);
+        if (target) showDetails(target, false);
+      }
     }
+
+    window.onpopstate = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const directId = urlParams.get('id');
+      if (directId) {
+        const targetKastje = allKastjes.find(k => k.id == directId);
+        if (targetKastje) showDetails(targetKastje, false);
+      } else {
+        resetToHome();
+      }
+    };
 
     checkUser();
   </script>
