@@ -3,205 +3,317 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Eigenaar Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Regio-locater | Eigenaar Dashboard</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+
+  <link rel="stylesheet" href="style.css?v=6.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body style="height: auto; overflow-y: auto; padding: 2rem 1rem;">
+<body>
 
-  <div style="max-width: 800px; margin: 0 auto;">
-    <a href="index.html" class="btn btn-secondary" style="margin-bottom: 1.5rem;">← Terug naar de kaart</a>
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="drawer" class="drawer">
+    <div class="drawer-header">
+      <h2>Menu</h2>
+      <button class="close-btn" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div id="drawerUserInfo" style="padding: 12px; background: var(--bg-main); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted);"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button onclick="window.location.href='index.html'" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>
+        <button onclick="window.location.href='admin.html'" class="btn" style="width:100%; justify-content:flex-start;">⚙️ Eigenaar Dashboard</button>
+      </div>
+      <button onclick="logout()" class="btn btn-logout" style="margin-top: 15px;">Uitloggen</button>
+    </div>
+  </div>
+
+  <header>
+    <h1>⚙️ Eigenaar Dashboard</h1>
+    <button class="menu-toggle-btn" onclick="openDrawer()">☰ Opties</button>
+  </header>
+
+  <div style="max-width: 900px; margin: 20px auto; padding: 0 15px;">
     
-    <div class="card">
-      <h1>Eigenaar Dashboard</h1>
-      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier jouw eigen kastjes, foto's, status en meldingen.</p>
+    <div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--primary);">
+      <h2 style="font-size: 1.2rem; margin-bottom: 10px;">📊 Statistieken & Impact</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+        <div style="background: var(--bg-main, #f8fafc); padding: 15px; border-radius: 8px; text-align: center;">
+          <span style="font-size: 1.8rem;">💚</span>
+          <h3 id="statThanks" style="font-size: 1.5rem; margin: 5px 0;">0</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Ontvangen Bedankjes</p>
+        </div>
+        <div style="background: var(--bg-main, #f8fafc); padding: 15px; border-radius: 8px; text-align: center;">
+          <span style="font-size: 1.8rem;">📦</span>
+          <h3 id="statItems" style="font-size: 1.5rem; margin: 5px 0;">0</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Gemelde Items</p>
+        </div>
+        <div style="background: var(--bg-main, #f8fafc); padding: 15px; border-radius: 8px; text-align: center;">
+          <span style="font-size: 1.8rem;">🏘️</span>
+          <h3 id="statKastjes" style="font-size: 1.5rem; margin: 5px 0;">0</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Mijn Beheerde Kastjes</p>
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>Nieuwe Locatie Toevoegen</h2>
-      <form onsubmit="addKastje(event)">
-        <label>Naam:</label>
-        <input type="text" id="kastNaam" placeholder="Bijv. Buurtkastje Kerkstraat" required>
+    <div class="card" style="margin-bottom: 20px;">
+      <h2 id="formTitle">➕ Nieuw Kastje / Bieb Toevoegen</h2>
+      <form id="kastjeForm" onsubmit="saveKastje(event)" style="margin-top: 12px;">
+        <input type="hidden" id="kastjeId">
+        
+        <label>Naam van kastje / bieb</label>
+        <input type="text" id="naam" required placeholder="Bijv. Buurtkastje De Groene Oase">
 
-        <label>Type:</label>
-        <select id="kastType">
+        <label>Type</label>
+        <select id="type">
           <option value="Buurtkastje">Buurtkastje</option>
           <option value="Minibieb">Minibieb</option>
         </select>
 
-        <label>Adres + Woonplaats:</label>
-        <input type="text" id="kastAdres" placeholder="Bijv. Kerkstraat 12, Amsterdam" required>
+        <label>Adres</label>
+        <input type="text" id="adres" required placeholder="Straatnaam 12, Woonplaats">
 
-        <label>Foto URL (afbeeldingslink):</label>
-        <input type="url" id="kastFoto" placeholder="https://voorbeeld.nl/foto.jpg">
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label>Breedtegraad (Latitude)</label>
+            <input type="number" step="any" id="latitude" required placeholder="52.3676">
+          </div>
+          <div style="flex: 1;">
+            <label>Lengtegraad (Longitude)</label>
+            <input type="number" step="any" id="longitude" required placeholder="4.9041">
+          </div>
+        </div>
 
-        <label>Status Voorraad:</label>
-        <select id="kastStatus">
-          <option value="Goed gevuld">🟢 Goed gevuld</option>
-          <option value="Bijna leeg">🟡 Bijna leeg</option>
-          <option value="Dringend vulhulp nodig">🔴 Dringend vulhulp nodig!</option>
+        <label>Status van voorraad</label>
+        <select id="status">
+          <option value="Goed gevuld">Goed gevuld</option>
+          <option value="Bijna leeg">Bijna leeg</option>
+          <option value="Dringend vulhulp nodig">Dringend vulhulp nodig</option>
         </select>
 
-        <label>Wenslijst (optioneel):</label>
-        <textarea id="kastWenslijst" rows="3" placeholder="Bijv. Houdbare melk, rijst, kinderboeken..."></textarea>
+        <label>🕒 Openingstijden</label>
+        <input type="text" id="openingstijden" placeholder="Bijv. 24/7 geopend, of Dagelijks van 08:00 - 20:00">
 
-        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Plaats op de Kaart</button>
+        <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer;">
+          <input type="checkbox" id="rolstoel_toegankelijk" checked style="width: auto; margin: 0;">
+          ♿ Rolstoeltoegankelijk
+        </label>
+
+        <label>Wenslijst voor bezoekers</label>
+        <textarea id="wenslijst" rows="3" placeholder="Wat is er op dit moment hard nodig? (Bijv: Houdbare melk, rijst, kinderboeken)"></textarea>
+
+        <label>Afbeelding URL (Foto)</label>
+        <input type="url" id="foto_url" placeholder="https://voorbeeld.nl/foto.jpg">
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button type="submit" class="btn" style="flex: 1;">Opslaan</button>
+          <button type="button" onclick="resetForm()" class="btn btn-secondary">Annuleren</button>
+        </div>
       </form>
     </div>
 
-    <div class="card">
-      <h2>Status & Wenslijst Bijwerken</h2>
-      <label>Kies Jouw Kastje:</label>
-      <select id="kastjeSelect" onchange="loadKastjeDetails()"></select>
-      
-      <label>Status Voorraad:</label>
-      <select id="updateStatusInput">
-        <option value="Goed gevuld">🟢 Goed gevuld</option>
-        <option value="Bijna leeg">🟡 Bijna leeg</option>
-        <option value="Dringend vulhulp nodig">🔴 Dringend vulhulp nodig!</option>
-      </select>
-
-      <label>Foto URL:</label>
-      <input type="url" id="updateFotoInput" placeholder="https://voorbeeld.nl/foto.jpg">
-
-      <label>Wenslijst tekst:</label>
-      <textarea id="wenslijstInput" rows="3"></textarea>
-      
-      <button onclick="saveKastjeChanges()" class="btn">Wijzigingen Opslaan</button>
+    <div class="card" style="margin-bottom: 20px;">
+      <h2>📋 Mijn Beheerde Locaties</h2>
+      <div id="myKastjesList" style="margin-top: 12px;">Laden...</div>
     </div>
 
-    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen voor Jouw Kastjes</h2>
-    <div id="pending-list">Laden...</div>
+    <div class="card">
+      <h2>📬 Ingediende Meldingen Keuren</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Keur meldingen goed die door bezoekers zijn doorgegeven voordat ze live op de kaart verschijnen.</p>
+      <div id="pendingItemsList">Laden...</div>
+    </div>
+
   </div>
+
+  <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
+    <p>© 2026 <strong>BrandonICT</strong> — <em>Regio-locater</em>. Alle rechten voorbehouden.</p>
+  </footer>
 
   <script>
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
-    let currentUserId = null;
+    let currentUser = null, userProfile = null;
 
-    async function checkAdminAccess() {
+    function openDrawer() { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
+    function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
+
+    async function initAdmin() {
       const { data: { session } } = await db.auth.getSession();
       if (!session) return window.location.href = 'index.html';
 
-      currentUserId = session.user.id;
+      currentUser = session.user;
+      const { data: profile } = await db.from('profielen').select('*').eq('id', currentUser.id).single();
+      userProfile = profile;
 
-      const { data: profile } = await db.from('profielen').select('rol').eq('id', currentUserId).single();
-      if (!profile || profile.rol !== 'eigenaar') {
-        alert('Dit scherm is alleen voor kastje-eigenaren.');
-        window.location.href = 'index.html';
-      } else {
-        loadKastjesDropdown();
-        loadPending();
+      if (userProfile?.rol !== 'eigenaar') {
+        alert('Geen toegang. Dit scherm is alleen voor eigenaren.');
+        return window.location.href = 'index.html';
+      }
+
+      document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong>${currentUser.email}</strong>`;
+
+      loadDashboardStats();
+      loadMyKastjes();
+      loadPendingItems();
+    }
+
+    async function loadDashboardStats() {
+      const { data: kastjes } = await db.from('kastjes').select('id, bedankjes').eq('eigenaar_id', currentUser.id);
+      
+      let totalThanks = 0;
+      let kastjeIds = [];
+
+      if (kastjes) {
+        kastjeIds = kastjes.map(k => k.id);
+        totalThanks = kastjes.reduce((sum, k) => sum + (k.bedankjes || 0), 0);
+        document.getElementById('statKastjes').innerText = kastjes.length;
+        document.getElementById('statThanks').innerText = totalThanks;
+      }
+
+      if (kastjeIds.length > 0) {
+        const { count } = await db.from('inventaris').select('*', { count: 'exact', head: true }).in('kastje_id', kastjeIds);
+        document.getElementById('statItems').innerText = count || 0;
       }
     }
 
-    async function addKastje(e) {
-      e.preventDefault();
-      const naam = document.getElementById('kastNaam').value;
-      const type = document.getElementById('kastType').value;
-      const adres = document.getElementById('kastAdres').value;
-      const foto_url = document.getElementById('kastFoto').value;
-      const status = document.getElementById('kastStatus').value;
-      const wenslijst = document.getElementById('kastWenslijst').value;
+    async function loadMyKastjes() {
+      const { data } = await db.from('kastjes').select('*').eq('eigenaar_id', currentUser.id);
+      const container = document.getElementById('myKastjesList');
 
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adres)}`);
-      const geoData = await res.json();
-
-      if (!geoData || geoData.length === 0) return alert('Adres niet gevonden! Controleer het adres.');
-
-      const { error } = await db.from('kastjes').insert([{
-        naam, type, adres, foto_url, status, wenslijst, 
-        user_id: currentUserId,
-        latitude: parseFloat(geoData[0].lat), 
-        longitude: parseFloat(geoData[0].lon),
-        updated_at: new Date().toISOString()
-      }]);
-
-      if (!error) {
-        alert('Kastje succesvol toegevoegd aan jouw account!');
-        location.reload();
-      } else {
-        alert('Fout bij opslaan: ' + error.message);
-      }
-    }
-
-    // Alleen kastjes van de ingelogde eigenaar laden
-    async function loadKastjesDropdown() {
-      const { data } = await db.from('kastjes').select('*').eq('user_id', currentUserId);
-      const select = document.getElementById('kastjeSelect');
-      select.innerHTML = '';
-
-      if (data && data.length > 0) {
-        data.forEach(k => select.innerHTML += `<option value="${k.id}">${k.naam}</option>`);
-        loadKastjeDetails();
-      } else {
-        select.innerHTML = '<option value="">Geen eigen kastjes gevonden</option>';
-        document.getElementById('wenslijstInput').value = '';
-        document.getElementById('updateFotoInput').value = '';
-      }
-    }
-
-    async function loadKastjeDetails() {
-      const id = document.getElementById('kastjeSelect').value;
-      if (!id) return;
-      const { data } = await db.from('kastjes').select('*').eq('id', id).single();
-      if (data) {
-        document.getElementById('wenslijstInput').value = data.wenslijst || '';
-        document.getElementById('updateFotoInput').value = data.foto_url || '';
-        document.getElementById('updateStatusInput').value = data.status || 'Goed gevuld';
-      }
-    }
-
-    async function saveKastjeChanges() {
-      const id = document.getElementById('kastjeSelect').value;
-      if (!id) return alert('Selecteer eerst een kastje.');
-
-      const wenslijst = document.getElementById('wenslijstInput').value;
-      const foto_url = document.getElementById('updateFotoInput').value;
-      const status = document.getElementById('updateStatusInput').value;
-
-      await db.from('kastjes').update({ 
-        wenslijst, foto_url, status, updated_at: new Date().toISOString() 
-      }).eq('id', id).eq('user_id', currentUserId);
-
-      alert('Kastje bijgewerkt!');
-    }
-
-    // Alleen meldingen van kastjes van déze eigenaar laden
-    async function loadPending() {
-      const { data } = await db.from('inventaris')
-        .select('*, kastjes!inner(naam, user_id)')
-        .eq('goedgekeurd', false)
-        .eq('kastjes.user_id', currentUserId);
-
-      const container = document.getElementById('pending-list');
       if (!data || data.length === 0) {
-        container.innerHTML = '<div class="card"><p style="color: var(--text-muted);">Geen openstaande meldingen voor jouw kastjes.</p></div>';
+        container.innerHTML = '<p style="font-size:0.9rem; color:var(--text-muted);">Je hebt nog geen kastjes toegevoegd.</p>';
         return;
       }
 
-      container.innerHTML = data.map(item => `
-        <div class="card">
-          <p><b>Kastje:</b> ${item.kastjes?.naam || 'Onbekend'}</p>
-          <p><b>Melding:</b> ${item.item}</p>
-          <div style="margin-top: 10px; display: flex; gap: 8px;">
-            <button class="btn" onclick="updateStatus(${item.id}, true)">Goedkeuren</button>
-            <button class="btn btn-deny" onclick="deleteItem(${item.id})">Afwijzen</button>
+      container.innerHTML = data.map(k => `
+        <div style="border:1px solid var(--border-color); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <strong>${k.naam}</strong> (${k.type})<br>
+            <span style="font-size:0.85rem; color:var(--text-muted);">${k.adres}</span><br>
+            <span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">🕒 ${k.openingstijden || '24/7 geopend'} | ♿ ${k.rolstoel_toegankelijk !== false ? 'Toegankelijk' : 'Niet toegankelijk'}</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick='editKastje(${JSON.stringify(k)})' class="btn btn-secondary" style="padding:6px 12px; font-size:0.85rem;">✏️ Bewerken</button>
+            <button onclick="deleteKastje(${k.id})" class="btn" style="padding:6px 12px; font-size:0.85rem; background-color:var(--danger);">🗑️ Verwijderen</button>
           </div>
         </div>
       `).join('');
     }
 
-    async function updateStatus(id, status) {
-      await db.from('inventaris').update({ goedgekeurd: status }).eq('id', id);
-      loadPending();
+    function editKastje(k) {
+      document.getElementById('formTitle').innerText = '✏️ Kastje Bewerken';
+      document.getElementById('kastjeId').value = k.id;
+      document.getElementById('naam').value = k.naam;
+      document.getElementById('type').value = k.type || 'Buurtkastje';
+      document.getElementById('adres').value = k.adres;
+      document.getElementById('latitude').value = k.latitude;
+      document.getElementById('longitude').value = k.longitude;
+      document.getElementById('status').value = k.status || 'Goed gevuld';
+      document.getElementById('openingstijden').value = k.openingstijden || '24/7 geopend';
+      document.getElementById('rolstoel_toegankelijk').checked = k.rolstoel_toegankelijk !== false;
+      document.getElementById('wenslijst').value = k.wenslijst || '';
+      document.getElementById('foto_url').value = k.foto_url || '';
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    async function deleteItem(id) {
-      await db.from('inventaris').delete().eq('id', id);
-      loadPending();
+    function resetForm() {
+      document.getElementById('formTitle').innerText = '➕ Nieuw Kastje / Bieb Toevoegen';
+      document.getElementById('kastjeForm').reset();
+      document.getElementById('kastjeId').value = '';
     }
 
-    checkAdminAccess();
+    async function saveKastje(e) {
+      e.preventDefault();
+      const id = document.getElementById('kastjeId').value;
+      const kastjeData = {
+        naam: document.getElementById('naam').value,
+        type: document.getElementById('type').value,
+        adres: document.getElementById('adres').value,
+        latitude: parseFloat(document.getElementById('latitude').value),
+        longitude: parseFloat(document.getElementById('longitude').value),
+        status: document.getElementById('status').value,
+        openingstijden: document.getElementById('openingstijden').value || '24/7 geopend',
+        rolstoel_toegankelijk: document.getElementById('rolstoel_toegankelijk').checked,
+        wenslijst: document.getElementById('wenslijst').value,
+        foto_url: document.getElementById('foto_url').value,
+        eigenaar_id: currentUser.id
+      };
+
+      if (id) {
+        const { error } = await db.from('kastjes').update(kastjeData).eq('id', id);
+        if (!error) alert('Kastje succesvol bijgewerkt!');
+        else alert('Fout bij bijwerken: ' + error.message);
+      } else {
+        const { error } = await db.from('kastjes').insert([kastjeData]);
+        if (!error) alert('Nieuw kastje toegevoegd!');
+        else alert('Fout bij toevoegen: ' + error.message);
+      }
+
+      resetForm();
+      loadDashboardStats();
+      loadMyKastjes();
+    }
+
+    async function deleteKastje(id) {
+      if (confirm('Weet je zeker dat je dit kastje wilt verwijderen?')) {
+        const { error } = await db.from('kastjes').delete().eq('id', id);
+        if (!error) {
+          alert('Kastje verwijderd.');
+          loadDashboardStats();
+          loadMyKastjes();
+        } else {
+          alert('Fout bij verwijderen: ' + error.message);
+        }
+      }
+    }
+
+    async function loadPendingItems() {
+      const { data: myKastjes } = await db.from('kastjes').select('id, naam').eq('eigenaar_id', currentUser.id);
+      const container = document.getElementById('pendingItemsList');
+
+      if (!myKastjes || myKastjes.length === 0) {
+        container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Geen kastjes gevonden.</p>';
+        return;
+      }
+
+      const ids = myKastjes.map(k => k.id);
+      const { data: items } = await db.from('inventaris').select('id, item, created_at, kastje_id').in('kastje_id', ids).eq('goedgekeurd', false);
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Er staan op dit moment geen ongekeurde meldingen open.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => {
+        const kastje = myKastjes.find(k => k.id === item.kastje_id);
+        return `
+          <div style="border:1px solid var(--border-color); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong>${kastje?.naam || 'Kastje'}</strong>: ${item.item}
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button onclick="approveItem(${item.id}, true)" class="btn" style="padding:4px 10px; font-size:0.8rem;">Goedgekeurd</button>
+              <button onclick="approveItem(${item.id}, false)" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem; color:var(--danger);">Afwijzen</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function approveItem(id, approve) {
+      if (approve) {
+        await db.from('inventaris').update({ goedgekeurd: true }).eq('id', id);
+      } else {
+        await db.from('inventaris').delete().eq('id', id);
+      }
+      loadPendingItems();
+      loadDashboardStats();
+    }
+
+    async function logout() { await db.auth.signOut(); window.location.href = 'index.html'; }
+
+    initAdmin();
   </script>
 </body>
 </html>
