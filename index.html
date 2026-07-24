@@ -128,7 +128,7 @@
   <script>
     let deferredPrompt;
 
-    // Register Service Worker for PWA
+    // Relatieve registratie van de Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error:', err));
     }
@@ -321,7 +321,7 @@
 
     async function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
-      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=$${k.latitude},${k.longitude}`;
+      const googleMapsUrl = `https://maps.google.com/?q=${k.latitude},${k.longitude}`;
       
       let statusColor = '#10b981';
       if (k.status === 'Bijna leeg') statusColor = '#f59e0b';
