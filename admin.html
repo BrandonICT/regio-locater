@@ -14,11 +14,11 @@
     
     <div class="card">
       <h1>Eigenaar Dashboard</h1>
-      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier eenvoudig je eigen kastjes, foto's, status en meldingen.</p>
+      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier jouw eigen kastjes, foto's, status en meldingen.</p>
     </div>
 
     <div class="card">
-      2. Nieuwe Locatie Toevoegen
+      <h2>Nieuwe Locatie Toevoegen</h2>
       <form onsubmit="addKastje(event)">
         <label>Naam:</label>
         <input type="text" id="kastNaam" placeholder="Bijv. Buurtkastje Kerkstraat" required>
@@ -51,7 +51,7 @@
 
     <div class="card">
       <h2>Status & Wenslijst Bijwerken</h2>
-      <label>Kies Kastje:</label>
+      <label>Kies Jouw Kastje:</label>
       <select id="kastjeSelect" onchange="loadKastjeDetails()"></select>
       
       <label>Status Voorraad:</label>
@@ -70,24 +70,27 @@
       <button onclick="saveKastjeChanges()" class="btn">Wijzigingen Opslaan</button>
     </div>
 
-    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen</h2>
+    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen voor Jouw Kastjes</h2>
     <div id="pending-list">Laden...</div>
   </div>
 
   <script>
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
+    let currentUserId = null;
 
     async function checkAdminAccess() {
       const { data: { session } } = await db.auth.getSession();
       if (!session) return window.location.href = 'index.html';
 
-      const { data: profile } = await db.from('profielen').select('rol').eq('id', session.user.id).single();
+      currentUserId = session.user.id;
+
+      const { data: profile } = await db.from('profielen').select('rol').eq('id', currentUserId).single();
       if (!profile || profile.rol !== 'eigenaar') {
         alert('Dit scherm is alleen voor kastje-eigenaren.');
         window.location.href = 'index.html';
       } else {
-        loadPending();
         loadKastjesDropdown();
+        loadPending();
       }
     }
 
@@ -107,24 +110,33 @@
 
       const { error } = await db.from('kastjes').insert([{
         naam, type, adres, foto_url, status, wenslijst, 
+        user_id: currentUserId,
         latitude: parseFloat(geoData[0].lat), 
         longitude: parseFloat(geoData[0].lon),
         updated_at: new Date().toISOString()
       }]);
 
       if (!error) {
-        alert('Kastje toegevoegd!');
+        alert('Kastje succesvol toegevoegd aan jouw account!');
         location.reload();
+      } else {
+        alert('Fout bij opslaan: ' + error.message);
       }
     }
 
+    // Alleen kastjes van de ingelogde eigenaar laden
     async function loadKastjesDropdown() {
-      const { data } = await db.from('kastjes').select('*');
+      const { data } = await db.from('kastjes').select('*').eq('user_id', currentUserId);
       const select = document.getElementById('kastjeSelect');
       select.innerHTML = '';
+
       if (data && data.length > 0) {
         data.forEach(k => select.innerHTML += `<option value="${k.id}">${k.naam}</option>`);
         loadKastjeDetails();
+      } else {
+        select.innerHTML = '<option value="">Geen eigen kastjes gevonden</option>';
+        document.getElementById('wenslijstInput').value = '';
+        document.getElementById('updateFotoInput').value = '';
       }
     }
 
@@ -141,24 +153,32 @@
 
     async function saveKastjeChanges() {
       const id = document.getElementById('kastjeSelect').value;
+      if (!id) return alert('Selecteer eerst een kastje.');
+
       const wenslijst = document.getElementById('wenslijstInput').value;
       const foto_url = document.getElementById('updateFotoInput').value;
       const status = document.getElementById('updateStatusInput').value;
 
       await db.from('kastjes').update({ 
         wenslijst, foto_url, status, updated_at: new Date().toISOString() 
-      }).eq('id', id);
+      }).eq('id', id).eq('user_id', currentUserId);
 
-      alert('Kastje succesvol bijgewerkt!');
+      alert('Kastje bijgewerkt!');
     }
 
+    // Alleen meldingen van kastjes van déze eigenaar laden
     async function loadPending() {
-      const { data } = await db.from('inventaris').select('*, kastjes(naam)').eq('goedgekeurd', false);
+      const { data } = await db.from('inventaris')
+        .select('*, kastjes!inner(naam, user_id)')
+        .eq('goedgekeurd', false)
+        .eq('kastjes.user_id', currentUserId);
+
       const container = document.getElementById('pending-list');
       if (!data || data.length === 0) {
-        container.innerHTML = '<div class="card"><p style="color: var(--text-muted);">Geen openstaande meldingen.</p></div>';
+        container.innerHTML = '<div class="card"><p style="color: var(--text-muted);">Geen openstaande meldingen voor jouw kastjes.</p></div>';
         return;
       }
+
       container.innerHTML = data.map(item => `
         <div class="card">
           <p><b>Kastje:</b> ${item.kastjes?.naam || 'Onbekend'}</p>
