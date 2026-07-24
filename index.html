@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=10.0">
+  <link rel="stylesheet" href="style.css?v=12.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,6 +47,18 @@
     body.dark-theme .tag-badge {
       background: #334155;
       color: #cbd5e1;
+    }
+    .achievement-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      background: #fef08a;
+      color: #854d0e;
+      margin-right: 5px;
+      margin-bottom: 5px;
+      border: 1px solid #facc15;
     }
   </style>
 </head>
@@ -142,6 +154,11 @@
           <option value="Kleding">👕 Kleding</option>
           <option value="Verzorging">🧼 Verzorging</option>
         </select>
+      </div>
+
+      <div style="background: var(--card-bg, #fff); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0); display: flex; align-items: center; gap: 6px;">
+        <input type="checkbox" id="onlyOpenCheck" onchange="applyFilters()" style="margin: 0; width: 16px; height: 16px;">
+        <label for="onlyOpenCheck" style="margin: 0; cursor: pointer;">🕒 Nu Open (24/7)</label>
       </div>
     </div>
   </div>
@@ -272,6 +289,14 @@
         map.setView([userCoords.lat, userCoords.lon], 14);
         if (userMarker) map.removeLayer(userMarker);
         userMarker = L.circleMarker([userCoords.lat, userCoords.lon], { color: '#0284c7', fillColor: '#38bdf8', fillOpacity: 0.8, radius: 9 }).addTo(map);
+        
+        // Sorteer kastjes op afstand als GPS aan staat
+        allKastjes.sort((a, b) => {
+          let distA = getDistanceKm(userCoords.lat, userCoords.lon, a.latitude, a.longitude);
+          let distB = getDistanceKm(userCoords.lat, userCoords.lon, b.latitude, b.longitude);
+          return distA - distB;
+        });
+
         applyFilters();
       });
     }
@@ -313,6 +338,7 @@
       markersGroup.clearLayers();
       const maxRadius = parseFloat(document.getElementById('radiusSelect').value);
       const selectedTag = document.getElementById('categoryTagSelect').value;
+      const onlyOpen = document.getElementById('onlyOpenCheck').checked;
 
       allKastjes.forEach(k => {
         let matchCategory = false;
@@ -331,10 +357,22 @@
           matchTag = k.categorieën && k.categorieën.includes(selectedTag);
         }
 
-        if (matchCategory && matchRadius && matchTag) {
+        let matchOpen = true;
+        if (onlyOpen) {
+          matchOpen = !k.openingstijden || k.openingstijden.toLowerCase().includes('24/7') || k.openingstijden.toLowerCase().includes('altijd');
+        }
+
+        if (matchCategory && matchRadius && matchTag && matchOpen) {
           const icon = k.type === 'Minibieb' ? blueIcon : greenIcon;
           const marker = L.marker([k.latitude, k.longitude], { icon }).addTo(markersGroup);
-          marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}`);
+          
+          let distText = '';
+          if (userCoords) {
+            const d = getDistanceKm(userCoords.lat, userCoords.lon, k.latitude, k.longitude);
+            distText = `<br><span style="font-size:0.8rem; color:#0284c7;">📍 ${d.toFixed(1)} km bij jou vandaan</span>`;
+          }
+
+          marker.bindPopup(`<b>${k.naam}</b><br>${k.adres}${distText}`);
           marker.on('click', () => showDetails(k));
         }
       });
@@ -352,12 +390,18 @@
 
     async function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
-      const googleMapsUrl = `https://maps.google.com/?q=${k.latitude},${k.longitude}`;
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${k.latitude},${k.longitude}`;
       
       let tagsHtml = '';
       if (k.categorieën && k.categorieën.length > 0) {
         tagsHtml = k.categorieën.map(t => `<span class="tag-badge">🏷️ ${t}</span>`).join('');
       }
+
+      // 🏆 Badges & Mijlpalen berekenen
+      let achievementsHtml = '';
+      if ((k.bedankjes || 0) >= 10) achievementsHtml += `<span class="achievement-badge">🌟 Top Locatie (10+ 💚)</span>`;
+      if ((k.bedankjes || 0) >= 25) achievementsHtml += `<span class="achievement-badge">👑 Buurtheld (25+ 💚)</span>`;
+      if (k.status === 'Dringend vulhulp nodig') achievementsHtml += `<span class="achievement-badge" style="background:#fee2e2; color:#991b1b; border-color:#fca5a5;">🚨 Hulp Nodig</span>`;
 
       let approvedItems = [];
       try {
@@ -371,7 +415,7 @@
         if (res.data) reacties = res.data;
       } catch(e) {}
 
-      let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen goedgekeurde meldingen van bezoekers.</p>';
+      let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen recente meldingen van bezoekers.</p>';
       if (approvedItems && approvedItems.length > 0) {
         itemsListHtml = '<ul style="margin-left: 18px; font-size: 0.9rem; color: var(--text-main);">' + 
           approvedItems.map(i => `<li style="margin-bottom: 4px;">${i.item} ${i.foto_url ? `<br><img src="${i.foto_url}" style="width:100px; border-radius:6px; margin-top:4px;">` : ''}</li>`).join('') + '</ul>';
@@ -386,7 +430,18 @@
         `).join('');
       }
 
-      const shareUrl = window.location.origin + window.location.pathname + '?id=' + k.id;
+      // Eigenaar status update
+      let statusUpdateHtml = '';
+      if (k.status_update) {
+        statusUpdateHtml = `
+          <div style="background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.85rem;">
+            <strong>📢 Bericht van de Eigenaar:</strong><br>
+            "${k.status_update}"
+          </div>
+        `;
+      }
+
+      const shareUrl = window.location.href.split('?')[0] + '?id=' + k.id;
 
       const sidebarEl = document.getElementById('sidebar');
       sidebarEl.innerHTML = `
@@ -398,13 +453,18 @@
           </div>
           
           <h2 style="margin-top:8px;">${k.naam}</h2>
+          <div style="margin-top:4px;">${achievementsHtml}</div>
           <div style="margin-bottom:8px;">${tagsHtml}</div>
-          <p style="color: var(--text-muted);"><b>Adres:</b> ${k.adres}</p>
+          
+          ${statusUpdateHtml}
+
+          <p style="color: var(--text-muted); margin-top: 8px;"><b>Adres:</b> ${k.adres}</p>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">🕒 <b>Openingstijden:</b> ${k.openingstijden || '24/7 geopend'}</p>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">♿ <b>Rolstoeltoegankelijk:</b> ${k.rolstoel_toegankelijk !== false ? 'Ja' : 'Nee'}</p>
 
-          <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
             <button onclick="sendThanks(${k.id}, ${k.bedankjes || 0})" class="btn btn-secondary" style="flex: 1;">💚 Bedanken (${k.bedankjes || 0})</button>
+            <button onclick="reportUrgent(${k.id})" class="btn" style="background: #ef4444; color: white;">🚨 Dringend Meld Alarm</button>
           </div>
 
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route" style="display:block; text-align:center; text-decoration:none; margin-top:8px;">Route via Google Maps</a>
@@ -414,7 +474,7 @@
           <h3>Actuele Voorraad</h3>
           <div style="margin-top: 10px;">${itemsListHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je brought hebt:</h4>
+          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je gebracht hebt:</h4>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;" aria-label="Melding">
           <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;" aria-label="Foto URL">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
@@ -437,6 +497,16 @@
 
       new QRCode(document.getElementById("qrcode"), { text: shareUrl, width: 128, height: 128 });
       if (window.innerWidth <= 768) sidebarEl.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function reportUrgent(kastjeId) {
+      if (confirm('Wil je een melding maken dat dit kastje leeg is of hulp nodig heeft?')) {
+        const { error } = await db.from('kastjes').update({ status: 'Dringend vulhulp nodig' }).eq('id', kastjeId);
+        if (!error) {
+          alert('Melding verstuurd! De status is nu ingesteld op Dringend.');
+          loadKastjes();
+        }
+      }
     }
 
     async function submitVisitorItem(kastjeId) {
