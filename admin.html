@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eigenaar Dashboard</title>
-
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -15,11 +14,11 @@
     
     <div class="card">
       <h1>Eigenaar Dashboard</h1>
-      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier eenvoudig je eigen kastjes, wenslijsten en meldingen.</p>
+      <p style="color: var(--text-muted); margin-top: 4px;">Beheer hier eenvoudig je eigen kastjes, foto's, status en meldingen.</p>
     </div>
 
     <div class="card">
-      <h2>Nieuwe Locatie Toevoegen</h2>
+      2. Nieuwe Locatie Toevoegen
       <form onsubmit="addKastje(event)">
         <label>Naam:</label>
         <input type="text" id="kastNaam" placeholder="Bijv. Buurtkastje Kerkstraat" required>
@@ -33,6 +32,16 @@
         <label>Adres + Woonplaats:</label>
         <input type="text" id="kastAdres" placeholder="Bijv. Kerkstraat 12, Amsterdam" required>
 
+        <label>Foto URL (afbeeldingslink):</label>
+        <input type="url" id="kastFoto" placeholder="https://voorbeeld.nl/foto.jpg">
+
+        <label>Status Voorraad:</label>
+        <select id="kastStatus">
+          <option value="Goed gevuld">🟢 Goed gevuld</option>
+          <option value="Bijna leeg">🟡 Bijna leeg</option>
+          <option value="Dringend vulhulp nodig">🔴 Dringend vulhulp nodig!</option>
+        </select>
+
         <label>Wenslijst (optioneel):</label>
         <textarea id="kastWenslijst" rows="3" placeholder="Bijv. Houdbare melk, rijst, kinderboeken..."></textarea>
 
@@ -40,18 +49,29 @@
       </form>
     </div>
 
-    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen</h2>
-    <div id="pending-list">Laden...</div>
-
-    <div class="card" style="margin-top: 1.5rem;">
-      <h2>Wenslijst Aanpassen</h2>
+    <div class="card">
+      <h2>Status & Wenslijst Bijwerken</h2>
       <label>Kies Kastje:</label>
-      <select id="kastjeSelect" onchange="loadWenslijst()"></select>
+      <select id="kastjeSelect" onchange="loadKastjeDetails()"></select>
       
+      <label>Status Voorraad:</label>
+      <select id="updateStatusInput">
+        <option value="Goed gevuld">🟢 Goed gevuld</option>
+        <option value="Bijna leeg">🟡 Bijna leeg</option>
+        <option value="Dringend vulhulp nodig">🔴 Dringend vulhulp nodig!</option>
+      </select>
+
+      <label>Foto URL:</label>
+      <input type="url" id="updateFotoInput" placeholder="https://voorbeeld.nl/foto.jpg">
+
       <label>Wenslijst tekst:</label>
       <textarea id="wenslijstInput" rows="3"></textarea>
-      <button onclick="saveWenslijst()" class="btn">Opslaan</button>
+      
+      <button onclick="saveKastjeChanges()" class="btn">Wijzigingen Opslaan</button>
     </div>
+
+    <h2 style="margin-bottom: 0.8rem; color: var(--primary);">Inkomende Meldingen</h2>
+    <div id="pending-list">Laden...</div>
   </div>
 
   <script>
@@ -76,6 +96,8 @@
       const naam = document.getElementById('kastNaam').value;
       const type = document.getElementById('kastType').value;
       const adres = document.getElementById('kastAdres').value;
+      const foto_url = document.getElementById('kastFoto').value;
+      const status = document.getElementById('kastStatus').value;
       const wenslijst = document.getElementById('kastWenslijst').value;
 
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adres)}`);
@@ -84,7 +106,10 @@
       if (!geoData || geoData.length === 0) return alert('Adres niet gevonden! Controleer het adres.');
 
       const { error } = await db.from('kastjes').insert([{
-        naam, type, adres, wenslijst, latitude: parseFloat(geoData[0].lat), longitude: parseFloat(geoData[0].lon)
+        naam, type, adres, foto_url, status, wenslijst, 
+        latitude: parseFloat(geoData[0].lat), 
+        longitude: parseFloat(geoData[0].lon),
+        updated_at: new Date().toISOString()
       }]);
 
       if (!error) {
@@ -93,15 +118,47 @@
       }
     }
 
+    async function loadKastjesDropdown() {
+      const { data } = await db.from('kastjes').select('*');
+      const select = document.getElementById('kastjeSelect');
+      select.innerHTML = '';
+      if (data && data.length > 0) {
+        data.forEach(k => select.innerHTML += `<option value="${k.id}">${k.naam}</option>`);
+        loadKastjeDetails();
+      }
+    }
+
+    async function loadKastjeDetails() {
+      const id = document.getElementById('kastjeSelect').value;
+      if (!id) return;
+      const { data } = await db.from('kastjes').select('*').eq('id', id).single();
+      if (data) {
+        document.getElementById('wenslijstInput').value = data.wenslijst || '';
+        document.getElementById('updateFotoInput').value = data.foto_url || '';
+        document.getElementById('updateStatusInput').value = data.status || 'Goed gevuld';
+      }
+    }
+
+    async function saveKastjeChanges() {
+      const id = document.getElementById('kastjeSelect').value;
+      const wenslijst = document.getElementById('wenslijstInput').value;
+      const foto_url = document.getElementById('updateFotoInput').value;
+      const status = document.getElementById('updateStatusInput').value;
+
+      await db.from('kastjes').update({ 
+        wenslijst, foto_url, status, updated_at: new Date().toISOString() 
+      }).eq('id', id);
+
+      alert('Kastje succesvol bijgewerkt!');
+    }
+
     async function loadPending() {
       const { data } = await db.from('inventaris').select('*, kastjes(naam)').eq('goedgekeurd', false);
       const container = document.getElementById('pending-list');
-      
       if (!data || data.length === 0) {
         container.innerHTML = '<div class="card"><p style="color: var(--text-muted);">Geen openstaande meldingen.</p></div>';
         return;
       }
-
       container.innerHTML = data.map(item => `
         <div class="card">
           <p><b>Kastje:</b> ${item.kastjes?.naam || 'Onbekend'}</p>
@@ -122,30 +179,6 @@
     async function deleteItem(id) {
       await db.from('inventaris').delete().eq('id', id);
       loadPending();
-    }
-
-    async function loadKastjesDropdown() {
-      const { data } = await db.from('kastjes').select('*');
-      const select = document.getElementById('kastjeSelect');
-      select.innerHTML = '';
-      if (data && data.length > 0) {
-        data.forEach(k => select.innerHTML += `<option value="${k.id}">${k.naam}</option>`);
-        loadWenslijst();
-      }
-    }
-
-    async function loadWenslijst() {
-      const id = document.getElementById('kastjeSelect').value;
-      if (!id) return;
-      const { data } = await db.from('kastjes').select('wenslijst').eq('id', id).single();
-      if (data) document.getElementById('wenslijstInput').value = data.wenslijst || '';
-    }
-
-    async function saveWenslijst() {
-      const id = document.getElementById('kastjeSelect').value;
-      const wenslijst = document.getElementById('wenslijstInput').value;
-      await db.from('kastjes').update({ wenslijst }).eq('id', id);
-      alert('Wenslijst bijgewerkt!');
     }
 
     checkAdminAccess();
