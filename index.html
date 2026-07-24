@@ -3,67 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buurtkastjes & Minibiebs</title>
-  
+  <title>Buurtkastjes & Minibiebs Regio</title>
+
+  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { display: flex; flex-direction: column; height: 100vh; background-color: #f8f9fa; }
-    
-    header { background: #2e7d32; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    
-    .search-container { padding: 0.75rem 1rem; background: #ffffff; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #e0e0e0; }
-    .search-bar { flex: 1; min-width: 200px; display: flex; gap: 8px; }
-    .filter-group { display: flex; gap: 6px; }
-    
-    #container { display: flex; flex: 1; flex-direction: row; position: relative; }
-    #map { flex: 2; height: 100%; min-height: 350px; z-index: 1; }
-    #sidebar { flex: 1; padding: 1.5rem; background: #ffffff; overflow-y: auto; border-left: 1px solid #e0e0e0; }
-    
-    .btn { background: #2e7d32; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: background 0.2s; }
-    .btn:hover { background: #1b5e20; }
-    .btn-secondary { background: #f0f0f0; color: #333; }
-    .btn-secondary:hover { background: #e0e0e0; }
-    .btn-secondary.active { background: #2e7d32; color: white; }
-    .btn-gps { background: #0288d1; }
-    .btn-gps:hover { background: #01579b; }
-    .btn-route { background: #ff9800; color: white; width: 100%; margin-top: 10px; text-align: center; display: inline-block; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; }
-    .btn-route:hover { background: #f57c00; }
-    .btn-admin { background: #1565c0; }
-    .btn-logout { background: #c62828; }
-
-    .card { background: white; padding: 1.2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1rem; border: 1px solid #f0f0f0; }
-    input, select { width: 100%; padding: 10px; margin: 6px 0 12px; border: 1px solid #ccc; border-radius: 6px; }
-    
-    .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(3px); }
-    .auth-box { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 400px; }
-    
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; color: white; margin-bottom: 8px; }
-    .badge-kastje { background-color: #2e7d32; }
-    .badge-bieb { background-color: #1565c0; }
-
-    @media (max-width: 768px) { #container { flex-direction: column; } #map { height: 45vh; } }
-  </style>
 </head>
 <body>
 
   <div id="authModal" class="auth-overlay">
-    <div class="auth-box card">
-      <h2 id="authTitle" style="margin-bottom: 1rem; color: #2e7d32;">Registreren</h2>
+    <div class="auth-box">
+      <h2 id="authTitle">Registreren</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Welkom! Maak een account aan om te starten.</p>
+      
       <form id="authForm" onsubmit="handleAuth(event)">
         <label>E-mailadres</label>
-        <input type="email" id="authEmail" required>
+        <input type="email" id="authEmail" required placeholder="naam@voorbeeld.nl">
         
         <label>Wachtwoord</label>
-        <input type="password" id="authPassword" required minlength="6">
+        <input type="password" id="authPassword" required minlength="6" placeholder="******">
 
         <div id="registerFields">
           <label>Woonplaats</label>
-          <input type="text" id="authWoonplaats">
+          <input type="text" id="authWoonplaats" placeholder="Bijv. Amsterdam">
 
           <label>Ik gebruik het platform als:</label>
           <select id="authRol">
@@ -72,52 +35,50 @@
           </select>
         </div>
 
-        <button type="submit" class="btn" id="authSubmitBtn" style="width: 100%; margin-top: 10px; padding: 12px;">Account Aanmaken</button>
+        <button type="submit" class="btn" id="authSubmitBtn" style="width: 100%; margin-top: 10px;">Account Aanmaken</button>
       </form>
       <br>
       <p style="font-size:0.9rem; text-align:center;">
         <span id="authToggleText">Al een account?</span> 
-        <a href="#" onclick="toggleAuthMode()" id="authToggleLink" style="color: #2e7d32; font-weight: bold;">Inloggen</a>
+        <a href="#" onclick="toggleAuthMode()" id="authToggleLink" style="color: var(--primary); font-weight: bold;">Inloggen</a>
       </p>
     </div>
   </div>
 
   <header>
-    <h1> Buurtkastjes Regio</h1>
-    <div id="userNav" style="display: flex; gap: 10px;"></div>
+    <h1>Buurtkastjes Regio</h1>
+    <div id="userNav"></div>
   </header>
 
   <div class="search-container">
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;">
       <button onclick="searchLocation()" class="btn">Zoeken</button>
-      <button onclick="locateUser()" class="btn btn-gps" title="Mijn Locatie"> GPS</button>
+      <button onclick="locateUser()" class="btn btn-gps" title="Mijn Locatie">GPS</button>
     </div>
     
     <div class="filter-group">
       <button onclick="filterKastjes('alles')" class="btn btn-secondary active" id="filter-alles">Alles</button>
-      <button onclick="filterKastjes('Buurtkastje')" class="btn btn-secondary" id="filter-kastjes"> Buurtkastjes</button>
-      <button onclick="filterKastjes('Minibieb')" class="btn btn-secondary" id="filter-biebs"> Minibiebs</button>
+      <button onclick="filterKastjes('Buurtkastje')" class="btn btn-secondary" id="filter-kastjes">Kastjes</button>
+      <button onclick="filterKastjes('Minibieb')" class="btn btn-secondary" id="filter-biebs">Biebs</button>
     </div>
   </div>
 
   <div id="container">
     <div id="map"></div>
     <div id="sidebar">
-      <h2>Selecteer een locatielink</h2>
-      <p style="color: #666; margin-top: 8px;">Klik op een gekleurde marker op de kaart om de details, inventaris en route te bekijken.</p>
+      <div class="card">
+        <h2>Selecteer een locatie</h2>
+        <p style="color: var(--text-muted); margin-top: 6px;">Klik op een marker op de kaart om details, wenslijsten en routes te bekijken.</p>
+      </div>
     </div>
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://izjbtmnivskyspmzknaw.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX';
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+    const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
     let map, isLoginMode = false, currentUser = null, userProfile = null;
     let allKastjes = [], markersGroup = L.layerGroup(), userMarker = null;
 
-    // Custom Map Icoontjes aanmaken
     const greenIcon = L.icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -130,12 +91,10 @@
       iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
 
-    // Kaart initialiseren
     map = L.map('map').setView([52.3676, 4.9041], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
 
-    // Auth Check
     async function checkUser() {
       const { data: { session } } = await db.auth.getSession();
       if (session) {
@@ -172,12 +131,10 @@
         const rol = document.getElementById('authRol').value;
         const woonplaats = document.getElementById('authWoonplaats').value;
         const { data, error } = await db.auth.signUp({ email, password });
-        
-        if (error) {
-          alert(error.message);
-        } else if (data.user) {
+        if (error) alert(error.message);
+        else if (data.user) {
           await db.from('profielen').insert([{ id: data.user.id, email, rol, woonplaats }]);
-          alert('Account succesvol aangemaakt!');
+          alert('Account aangemaakt!');
           checkUser();
         }
       }
@@ -187,7 +144,7 @@
       const nav = document.getElementById('userNav');
       let html = '';
       if (userProfile?.rol === 'eigenaar') {
-        html += `<button onclick="window.location.href='admin.html'" class="btn btn-admin"> Admin Dashboard</button>`;
+        html += `<button onclick="window.location.href='admin.html'" class="btn btn-admin">Admin Dashboard</button> `;
       }
       html += `<button onclick="logout()" class="btn btn-logout">Uitloggen</button>`;
       nav.innerHTML = html;
@@ -198,43 +155,24 @@
       location.reload();
     }
 
-    // 1. GPS Locatie Functie
     function locateUser() {
-      if (!navigator.geolocation) {
-        alert('Geolocatie wordt niet ondersteund door je browser.');
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          map.setView([latitude, longitude], 14);
-
-          if (userMarker) map.removeLayer(userMarker);
-          userMarker = L.circleMarker([latitude, longitude], {
-            color: '#0288d1', fillColor: '#29b6f6', fillOpacity: 0.8, radius: 9
-          }).addTo(map).bindPopup("<b>Je bent hier</b>").openPopup();
-        },
-        () => alert('Kon je locatie niet ophalen. Zorg dat locatievoorzieningen aan staan.')
-      );
+      if (!navigator.geolocation) return alert('Geolocatie niet ondersteund.');
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 14);
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.circleMarker([latitude, longitude], { color: '#0288d1', fillColor: '#29b6f6', fillOpacity: 0.8, radius: 9 }).addTo(map);
+      });
     }
 
-    // Zoeken op plaats
     async function searchLocation() {
       const query = document.getElementById('searchInput').value;
       if (!query) return;
-
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
       const data = await res.json();
-
-      if (data && data.length > 0) {
-        map.setView([data[0].lat, data[0].lon], 14);
-      } else {
-        alert('Locatie niet gevonden.');
-      }
+      if (data && data.length > 0) map.setView([data[0].lat, data[0].lon], 14);
     }
 
-    // Kastjes ophalen & Tekenen op de kaart
     async function loadKastjes() {
       const { data } = await db.from('kastjes').select('*');
       if (data) {
@@ -243,10 +181,8 @@
       }
     }
 
-    // 3. Filter Functie & Render Markers
     function renderMarkers(filter) {
       markersGroup.clearLayers();
-
       allKastjes.forEach(k => {
         if (filter === 'alles' || k.type === filter) {
           const icon = k.type === 'Minibieb' ? blueIcon : greenIcon;
@@ -262,25 +198,23 @@
       if (type === 'alles') document.getElementById('filter-alles').classList.add('active');
       if (type === 'Buurtkastje') document.getElementById('filter-kastjes').classList.add('active');
       if (type === 'Minibieb') document.getElementById('filter-biebs').classList.add('active');
-
       renderMarkers(type);
     }
 
-    // Details + 2. Route via Google Maps
-    async function showDetails(k) {
+    function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${k.latitude},${k.longitude}`;
 
       document.getElementById('sidebar').innerHTML = `
-        <span class="badge ${badgeClass}">${k.type || 'Buurtkastje'}</span>
-        <h2>${k.naam}</h2>
-        <p style="margin-top: 4px; color: #555;"><b>Adres:</b> ${k.adres}</p>
-        
-        <a href="${googleMapsUrl}" target="_blank" class="btn-route"> Route via Google Maps</a>
-
-        <div class="card" style="margin-top:15px;">
-          <h3> Wenslijst</h3>
-          <p style="margin-top: 6px; color: #444;">${k.wenslijst || 'Geen wenslijst opgespecificeerd.'}</p>
+        <div class="card">
+          <span class="badge ${badgeClass}">${k.type || 'Buurtkastje'}</span>
+          <h2>${k.naam}</h2>
+          <p style="color: var(--text-muted); margin-top: 4px;"><b>Adres:</b> ${k.adres}</p>
+          <a href="${googleMapsUrl}" target="_blank" class="btn btn-route">Route via Google Maps</a>
+        </div>
+        <div class="card">
+          <h3>Wenslijst</h3>
+          <p style="margin-top: 6px; color: var(--text-main);">${k.wenslijst || 'Geen wenslijst opgegeven.'}</p>
         </div>
       `;
     }
