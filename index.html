@@ -8,14 +8,13 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=7.0">
+  <link rel="stylesheet" href="style.css?v=8.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
-    /* Dark Mode Styling */
     body.dark-theme {
       --bg-main: #0f172a;
       --card-bg: #1e293b;
@@ -59,17 +58,17 @@
       <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Maak een account aan om te starten.</p>
       
       <form id="authForm" onsubmit="handleAuth(event)">
-        <label>E-mailadres</label>
+        <label for="authEmail">E-mailadres</label>
         <input type="email" id="authEmail" required placeholder="naam@voorbeeld.nl">
         
-        <label>Wachtwoord</label>
+        <label for="authPassword">Wachtwoord</label>
         <input type="password" id="authPassword" required minlength="6" placeholder="******">
 
         <div id="registerFields">
-          <label>Woonplaats</label>
+          <label for="authWoonplaats">Woonplaats</label>
           <input type="text" id="authWoonplaats" placeholder="Bijv. Amsterdam">
 
-          <label>Ik gebruik het platform als:</label>
+          <label for="authRol">Ik gebruik het platform als:</label>
           <select id="authRol">
             <option value="bezoeker">Bezoeker (Zoeken & Meldingen)</option>
             <option value="eigenaar">Eigenaar (Kastje beheren)</option>
@@ -83,22 +82,6 @@
         <span id="authToggleText">Al een account?</span> 
         <a href="#" onclick="toggleAuthMode()" id="authToggleLink" style="color: var(--primary); font-weight: bold;">Inloggen</a>
       </p>
-    </div>
-  </div>
-
-  <div id="downloadModal" class="auth-overlay" style="display: none;">
-    <div class="auth-box" style="max-width: 480px;">
-      <h2 style="color: var(--primary-dark); margin-bottom: 0.5rem;">📲 Installeren als App</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Sla Regio-locater direct op op je apparaat:</p>
-      
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <div style="border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
-          <h4 style="margin-bottom: 4px;">🤖 Android & Windows App</h4>
-          <button onclick="installPWA()" class="btn" style="width: 100%;">Direct Installeren</button>
-        </div>
-      </div>
-      <br>
-      <button onclick="closeDownloadModal()" class="btn btn-secondary" style="width: 100%;">Sluiten</button>
     </div>
   </div>
 
@@ -125,6 +108,7 @@
 
   <div class="search-container">
     <div class="search-bar">
+      <label for="searchInput" style="display:none;">Zoeken</label>
       <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;">
       <button onclick="searchLocation()" class="btn">Zoeken</button>
       <button onclick="locateUser()" class="btn btn-gps">GPS</button>
@@ -139,7 +123,7 @@
 
     <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem;">
       <div style="background: var(--card-bg, #fff); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);">
-        <span>📍 Straal:</span>
+        <label for="radiusSelect">📍 Straal:</label>
         <select id="radiusSelect" onchange="applyFilters()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
           <option value="9999">Alles</option>
           <option value="1">1 km</option>
@@ -150,7 +134,7 @@
       </div>
 
       <div style="background: var(--card-bg, #fff); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);">
-        <span>🏷️ Categorie:</span>
+        <label for="categoryTagSelect">🏷️ Categorie:</label>
         <select id="categoryTagSelect" onchange="applyFilters()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
           <option value="alles">Alle Categorieën</option>
           <option value="Voedsel">🍎 Voedsel</option>
@@ -189,7 +173,6 @@
   </footer>
 
   <script>
-    let deferredPrompt;
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error:', err));
     }
@@ -429,7 +412,9 @@
           <div style="margin-top: 10px;">${itemsListHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
           <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je gebracht hebt:</h4>
+          <label for="visitorItemInput" style="display:none;">Melding</label>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;">
+          <label for="visitorPhotoInput" style="display:none;">Foto URL</label>
           <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
@@ -438,7 +423,9 @@
           <h3>💬 Gastenboek</h3>
           <div style="margin-top: 10px;">${reactiesHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
+          <label for="reactieNaam" style="display:none;">Naam</label>
           <input type="text" id="reactieNaam" placeholder="Jouw naam (optioneel)" style="margin-bottom: 6px;">
+          <label for="reactieBericht" style="display:none;">Bericht</label>
           <textarea id="reactieBericht" rows="2" placeholder="Laat een lief berichtje achter..." style="margin-bottom: 8px;"></textarea>
           <button onclick="submitReactie(${k.id})" class="btn btn-secondary" style="width: 100%;">Bericht Plaatsen</button>
         </div>
