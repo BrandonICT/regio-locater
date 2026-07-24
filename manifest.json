@@ -1,7 +1,7 @@
 {
-  "name": "Buurtkastjes Regio",
-  "short_name": "Buurtkastjes",
-  "start_url": "/index.html",
+  "name": "Regio-locater",
+  "short_name": "Regio-locater",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
