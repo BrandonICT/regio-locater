@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=9.0">
+  <link rel="stylesheet" href="style.css?v=10.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -108,8 +108,7 @@
 
   <div class="search-container">
     <div class="search-bar">
-      <label for="searchInput" style="display:none;">Zoeken</label>
-      <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;">
+      <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;" aria-label="Zoeken">
       <button onclick="searchLocation()" class="btn">Zoeken</button>
       <button onclick="locateUser()" class="btn btn-gps">GPS</button>
     </div>
@@ -209,9 +208,7 @@
         } else {
           document.getElementById('authModal').style.display = 'flex';
         }
-      } catch (e) {
-        console.log("Auth warning:", e);
-      }
+      } catch (e) {}
       loadKastjes();
       loadActivityFeed();
     }
@@ -288,7 +285,7 @@
     }
 
     async function loadKastjes() {
-      const { data, error } = await db.from('kastjes').select('*');
+      const { data } = await db.from('kastjes').select('*');
       if (data) {
         allKastjes = data;
         applyFilters();
@@ -355,7 +352,7 @@
 
     async function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
-      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${k.latitude},${k.longitude}`;
+      const googleMapsUrl = `https://maps.google.com/?q=${k.latitude},${k.longitude}`;
       
       let tagsHtml = '';
       if (k.categorieën && k.categorieën.length > 0) {
@@ -417,9 +414,9 @@
           <h3>Actuele Voorraad</h3>
           <div style="margin-top: 10px;">${itemsListHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je gebracht hebt:</h4>
-          <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;">
-          <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;">
+          <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je brought hebt:</h4>
+          <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;" aria-label="Melding">
+          <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;" aria-label="Foto URL">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
 
@@ -427,8 +424,8 @@
           <h3>💬 Gastenboek</h3>
           <div style="margin-top: 10px;">${reactiesHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          <input type="text" id="reactieNaam" placeholder="Jouw naam (optioneel)" style="margin-bottom: 6px;">
-          <textarea id="reactieBericht" rows="2" placeholder="Laat een lief berichtje achter..." style="margin-bottom: 8px;"></textarea>
+          <input type="text" id="reactieNaam" placeholder="Jouw naam (optioneel)" style="margin-bottom: 6px;" aria-label="Naam">
+          <textarea id="reactieBericht" rows="2" placeholder="Laat een lief berichtje achter..." style="margin-bottom: 8px;" aria-label="Bericht"></textarea>
           <button onclick="submitReactie(${k.id})" class="btn btn-secondary" style="width: 100%;">Bericht Plaatsen</button>
         </div>
 
