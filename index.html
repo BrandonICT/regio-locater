@@ -14,8 +14,8 @@
 
   <div id="authModal" class="auth-overlay">
     <div class="auth-box">
-      <h2 id="authTitle">Registreren</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Welkom! Maak een account aan om te starten.</p>
+      <h2 id="authTitle" style="color: var(--primary); margin-bottom: 0.5rem;">Registreren</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Maak een account aan om te starten.</p>
       
       <form id="authForm" onsubmit="handleAuth(event)">
         <label>E-mailadres</label>
@@ -30,8 +30,8 @@
 
           <label>Ik gebruik het platform als:</label>
           <select id="authRol">
-            <option value="bezoeker">Bezoeker (Zoeken & Meldingen maken)</option>
-            <option value="eigenaar">Eigenaar (Kastje / Minibieb beheren)</option>
+            <option value="bezoeker">Bezoeker (Zoeken & Meldingen)</option>
+            <option value="eigenaar">Eigenaar (Kastje beheren)</option>
           </select>
         </div>
 
@@ -45,16 +45,26 @@
     </div>
   </div>
 
+  <div id="drawerOverlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
+  <div id="drawer" class="drawer">
+    <h2>Menu & Opties</h2>
+    <div class="drawer-nav">
+      <div id="drawerUserInfo" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;"></div>
+      <div id="drawerMenuButtons"></div>
+    </div>
+    <button onclick="logout()" class="btn btn-logout" style="width: 100%; margin-top: auto;">Uitloggen</button>
+  </div>
+
   <header>
     <h1>Buurtkastjes Regio</h1>
-    <div id="userNav"></div>
+    <button class="menu-toggle-btn" onclick="toggleDrawer()">☰ Menu</button>
   </header>
 
   <div class="search-container">
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Zoek op plaats of adres..." style="margin:0;">
       <button onclick="searchLocation()" class="btn">Zoeken</button>
-      <button onclick="locateUser()" class="btn btn-gps" title="Mijn Locatie">GPS</button>
+      <button onclick="locateUser()" class="btn btn-gps">GPS</button>
     </div>
     
     <div class="filter-group">
@@ -69,7 +79,7 @@
     <div id="sidebar">
       <div class="card">
         <h2>Selecteer een locatie</h2>
-        <p style="color: var(--text-muted); margin-top: 6px;">Klik op een marker op de kaart om details, wenslijsten, voorraad en routes te bekijken.</p>
+        <p style="color: var(--text-muted); margin-top: 6px;">Klik op een gekleurde speld op de kaart om details, wenslijst en opties te bekijken.</p>
       </div>
     </div>
   </div>
@@ -95,6 +105,11 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
 
+    function toggleDrawer() {
+      document.getElementById('drawer').classList.toggle('active');
+      document.getElementById('drawerOverlay').classList.toggle('active');
+    }
+
     async function checkUser() {
       const { data: { session } } = await db.auth.getSession();
       if (session) {
@@ -102,7 +117,7 @@
         const { data } = await db.from('profielen').select('*').eq('id', currentUser.id).single();
         userProfile = data;
         document.getElementById('authModal').style.display = 'none';
-        updateNav();
+        updateDrawerNav();
         loadKastjes();
       } else {
         document.getElementById('authModal').style.display = 'flex';
@@ -140,14 +155,14 @@
       }
     }
 
-    function updateNav() {
-      const nav = document.getElementById('userNav');
-      let html = '';
+    function updateDrawerNav() {
+      document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><b>${currentUser.email}</b> (${userProfile?.rol || 'bezoeker'})`;
+      let html = `<button onclick="window.location.href='index.html'" class="btn btn-secondary" style="width:100%; text-align:left;">📍 Kaart Bekijken</button>`;
+      
       if (userProfile?.rol === 'eigenaar') {
-        html += `<button onclick="window.location.href='admin.html'" class="btn btn-admin">Admin Dashboard</button> `;
+        html += `<button onclick="window.location.href='admin.html'" class="btn" style="width:100%; margin-top:8px;">⚙️ Admin Dashboard</button>`;
       }
-      html += `<button onclick="logout()" class="btn btn-logout">Uitloggen</button>`;
-      nav.innerHTML = html;
+      document.getElementById('drawerMenuButtons').innerHTML = html;
     }
 
     async function logout() {
@@ -155,14 +170,11 @@
       location.reload();
     }
 
-    // Afstandsberekening (Haversine formule)
     function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // Straal van de aarde in km
+      const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       const d = R * c;
       return d < 1 ? Math.round(d * 1000) + ' meter' : d.toFixed(1) + ' km';
@@ -232,7 +244,6 @@
         distanceText = `<p style="font-size: 0.9rem; color: var(--secondary); font-weight: bold; margin-top: 4px;"> Afstand vanaf jou: ${dist}</p>`;
       }
 
-      // Goedgekeurde voorraad-items van bezoekers ophalen
       const { data: approvedItems } = await db.from('inventaris').select('item').eq('kastje_id', k.id).eq('goedgekeurd', true);
 
       let itemsListHtml = '<p style="font-size: 0.85rem; color: #888;">Nog geen goedgekeurde meldingen van bezoekers.</p>';
@@ -243,7 +254,7 @@
 
       document.getElementById('sidebar').innerHTML = `
         <div class="card">
-          ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:8px; margin-bottom:12px;">` : ''}
+          ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:10px; margin-bottom:12px;">` : ''}
           <span class="badge ${badgeClass}">${k.type || 'Buurtkastje'}</span>
           <span class="badge" style="background-color: ${statusColor};">${k.status || 'Goed gevuld'}</span>
           
@@ -273,10 +284,9 @@
       `;
     }
 
-    // Melding insturen als bezoeker
     async function submitVisitorItem(kastjeId) {
       const itemText = document.getElementById('visitorItemInput').value.trim();
-      if (!itemText) return alert('Vul eerst een melding of product in.');
+      if (!itemText) return alert('Vul eerst een melding in.');
 
       const { error } = await db.from('inventaris').insert([{
         kastje_id: kastjeId,
@@ -285,7 +295,7 @@
       }]);
 
       if (!error) {
-        alert('Je melding is verstuurd naar de eigenaar ter goedkeuring. Bedankt voor je bijdrage!');
+        alert('Melding verstuurd naar de eigenaar ter goedkeuring!');
         document.getElementById('visitorItemInput').value = '';
       } else {
         alert('Fout bij versturen: ' + error.message);
