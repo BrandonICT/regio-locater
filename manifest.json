@@ -1,15 +1,16 @@
 {
-  "name": "Regio-locater",
-  "short_name": "Regio-locater",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#10b981",
+  "short_name": "RegioLocater",
+  "name": "Regio-locater | Buurtkastjes & Minibiebs",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/888/888857.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "start_url": "./index.html",
+  "background_color": "#10b981",
+  "theme_color": "#10b981",
+  "display": "standalone",
+  "orientation": "portrait"
 }
