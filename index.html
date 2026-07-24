@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#10b981">
 
-  <link rel="stylesheet" href="style.css?v=8.0">
+  <link rel="stylesheet" href="style.css?v=9.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -150,12 +150,6 @@
   <div id="container">
     <div id="map"></div>
     <div id="sidebar">
-      <div class="card" style="background: linear-gradient(135deg, #10b98115, #0284c715); border: 1px solid var(--primary);">
-        <h3>🥾 Wandel & Fietsroute</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Genereer een route langs de 3 dichtstbijzijnde kastjes.</p>
-        <button onclick="generateRoute()" class="btn" style="width: 100%; margin-top: 10px;">🗺️ Route Samenstellen</button>
-      </div>
-
       <div class="card" style="border-left: 4px solid var(--primary);">
         <h3>⚡ Live Community Activiteit</h3>
         <div id="activityFeed" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">Laden...</div>
@@ -163,7 +157,7 @@
 
       <div class="card">
         <h2>Selecteer een locatie</h2>
-        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om details, foto, wenslijst en opties te bekijken.</p>
+        <p style="color: var(--text-muted); margin-top: 6px; font-size: 0.95rem;">Klik op een gekleurde marker op de kaart om details, foto, wenslijst en het gastenboek te bekijken.</p>
       </div>
     </div>
   </div>
@@ -173,13 +167,9 @@
   </footer>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error:', err));
-    }
-
     const db = supabase.createClient('https://izjbtmnivskyspmzknaw.supabase.co', 'sb_publishable_j0TN4PAFGlxdW88tju99Og_a6DpkbIX');
     let map, isLoginMode = false, currentUser = null, userProfile = null;
-    let allKastjes = [], markersGroup = L.layerGroup(), routeLayer = L.layerGroup(), userMarker = null, userCoords = null;
+    let allKastjes = [], markersGroup = L.layerGroup(), userMarker = null, userCoords = null;
     let currentCategoryFilter = 'alles';
 
     const greenIcon = L.icon({
@@ -197,7 +187,6 @@
     map = L.map('map').setView([52.3676, 4.9041], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     markersGroup.addTo(map);
-    routeLayer.addTo(map);
 
     function toggleDarkMode() {
       document.body.classList.toggle('dark-theme');
@@ -209,18 +198,22 @@
     function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
 
     async function checkUser() {
-      const { data: { session } } = await db.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        const { data } = await db.from('profielen').select('*').eq('id', currentUser.id).single();
-        userProfile = data;
-        document.getElementById('authModal').style.display = 'none';
-        updateDrawerNav();
-        loadKastjes();
-        loadActivityFeed();
-      } else {
-        document.getElementById('authModal').style.display = 'flex';
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        if (session) {
+          currentUser = session.user;
+          const { data } = await db.from('profielen').select('*').eq('id', currentUser.id).single();
+          userProfile = data;
+          document.getElementById('authModal').style.display = 'none';
+          updateDrawerNav();
+        } else {
+          document.getElementById('authModal').style.display = 'flex';
+        }
+      } catch (e) {
+        console.log("Auth warning:", e);
       }
+      loadKastjes();
+      loadActivityFeed();
     }
 
     function toggleAuthMode() {
@@ -255,6 +248,7 @@
     }
 
     function updateDrawerNav() {
+      if (!currentUser) return;
       document.getElementById('drawerUserInfo').innerHTML = `Ingelogd als:<br><strong style="color:var(--text-main);">${currentUser.email}</strong><br>Rol: <em>${userProfile?.rol || 'bezoeker'}</em>`;
       let html = `<button onclick="window.location.href='index.html'; closeDrawer();" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📍 Kaart Bekijken</button>`;
       
@@ -294,7 +288,7 @@
     }
 
     async function loadKastjes() {
-      const { data } = await db.from('kastjes').select('*');
+      const { data, error } = await db.from('kastjes').select('*');
       if (data) {
         allKastjes = data;
         applyFilters();
@@ -302,15 +296,19 @@
     }
 
     async function loadActivityFeed() {
-      const { data } = await db.from('inventaris').select('item, created_at, kastjes(naam)').eq('goedgekeurd', true).order('created_at', { ascending: false }).limit(3);
-      if (data && data.length > 0) {
-        document.getElementById('activityFeed').innerHTML = data.map(item => `
-          <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
-            <strong>${item.kastjes?.naam || 'Kastje'}</strong>: ${item.item}
-          </div>
-        `).join('');
-      } else {
-        document.getElementById('activityFeed').innerText = 'Nog geen recente activiteiten.';
+      try {
+        const { data } = await db.from('inventaris').select('item, created_at, kastjes(naam)').order('created_at', { ascending: false }).limit(3);
+        if (data && data.length > 0) {
+          document.getElementById('activityFeed').innerHTML = data.map(item => `
+            <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+              <strong>${item.kastjes?.naam || 'Kastje'}</strong>: ${item.item}
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('activityFeed').innerText = 'Nog geen recente activiteiten.';
+        }
+      } catch (e) {
+        document.getElementById('activityFeed').innerText = 'Geen recente activiteit.';
       }
     }
 
@@ -357,15 +355,24 @@
 
     async function showDetails(k) {
       const badgeClass = k.type === 'Minibieb' ? 'badge-bieb' : 'badge-kastje';
-      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${k.latitude},${k.longitude}`;
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${k.latitude},${k.longitude}`;
       
       let tagsHtml = '';
       if (k.categorieën && k.categorieën.length > 0) {
         tagsHtml = k.categorieën.map(t => `<span class="tag-badge">🏷️ ${t}</span>`).join('');
       }
 
-      const { data: approvedItems } = await db.from('inventaris').select('item, foto_url').eq('kastje_id', k.id).eq('goedgekeurd', true);
-      const { data: reacties } = await db.from('reacties').select('*').eq('kastje_id', k.id).order('created_at', { ascending: false }).limit(5);
+      let approvedItems = [];
+      try {
+        const res = await db.from('inventaris').select('item, foto_url').eq('kastje_id', k.id);
+        if (res.data) approvedItems = res.data;
+      } catch(e) {}
+
+      let reacties = [];
+      try {
+        const res = await db.from('reacties').select('*').eq('kastje_id', k.id).order('created_at', { ascending: false }).limit(5);
+        if (res.data) reacties = res.data;
+      } catch(e) {}
 
       let itemsListHtml = '<p style="font-size: 0.85rem; color: var(--text-muted);">Nog geen goedgekeurde meldingen van bezoekers.</p>';
       if (approvedItems && approvedItems.length > 0) {
@@ -401,7 +408,6 @@
 
           <div style="display: flex; gap: 8px; margin-top: 12px;">
             <button onclick="sendThanks(${k.id}, ${k.bedankjes || 0})" class="btn btn-secondary" style="flex: 1;">💚 Bedanken (${k.bedankjes || 0})</button>
-            <button onclick="toggleFavorite(${k.id})" class="btn btn-secondary" style="flex: 1;">⭐ Bewaren</button>
           </div>
 
           <a href="${googleMapsUrl}" target="_blank" class="btn btn-route" style="display:block; text-align:center; text-decoration:none; margin-top:8px;">Route via Google Maps</a>
@@ -412,9 +418,7 @@
           <div style="margin-top: 10px;">${itemsListHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
           <h4 style="font-size: 0.9rem; margin-bottom: 6px;">📸 Meld wat je gebracht hebt:</h4>
-          <label for="visitorItemInput" style="display:none;">Melding</label>
           <input type="text" id="visitorItemInput" placeholder="Bijv. 2 pakken pasta neergezet" style="margin-bottom: 8px;">
-          <label for="visitorPhotoInput" style="display:none;">Foto URL</label>
           <input type="url" id="visitorPhotoInput" placeholder="Foto URL (optioneel)" style="margin-bottom: 8px;">
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
@@ -423,9 +427,7 @@
           <h3>💬 Gastenboek</h3>
           <div style="margin-top: 10px;">${reactiesHtml}</div>
           <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border-color);">
-          <label for="reactieNaam" style="display:none;">Naam</label>
           <input type="text" id="reactieNaam" placeholder="Jouw naam (optioneel)" style="margin-bottom: 6px;">
-          <label for="reactieBericht" style="display:none;">Bericht</label>
           <textarea id="reactieBericht" rows="2" placeholder="Laat een lief berichtje achter..." style="margin-bottom: 8px;"></textarea>
           <button onclick="submitReactie(${k.id})" class="btn btn-secondary" style="width: 100%;">Bericht Plaatsen</button>
         </div>
@@ -448,12 +450,13 @@
       const { error } = await db.from('inventaris').insert([{
         kastje_id: kastjeId,
         item: itemText,
-        foto_url: fotoUrl || null,
-        goedgekeurd: false
+        foto_url: fotoUrl || null
       }]);
 
-      if (!error) alert('Melding verstuurd naar de eigenaar ter goedkeuring!');
-      else alert('Fout bij versturen: ' + error.message);
+      if (!error) {
+        alert('Melding verstuurd!');
+        loadKastjes();
+      } else alert('Fout bij versturen: ' + error.message);
     }
 
     async function submitReactie(kastjeId) {
@@ -471,13 +474,6 @@
     async function sendThanks(kastjeId, currentThanks) {
       const { error } = await db.from('kastjes').update({ bedankjes: currentThanks + 1 }).eq('id', kastjeId);
       if (!error) { alert('Bedankje verstuurd! 💚'); loadKastjes(); }
-    }
-
-    async function toggleFavorite(kastjeId) {
-      if (!currentUser) return alert('Log eerst in.');
-      const { error } = await db.from('favorieten').insert([{ user_id: currentUser.id, kastje_id: kastjeId }]);
-      if (!error) alert('Opgeslagen in favorieten! ⭐');
-      else alert('Staat al in favorieten.');
     }
 
     checkUser();
