@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buurtkastjes & Minibiebs Regio</title>
 
-  <link rel="stylesheet" href="style.css?v=2.0">
+  <link rel="stylesheet" href="style.css?v=3.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -262,7 +262,8 @@
           approvedItems.map(i => `<li style="margin-bottom: 4px;">${i.item}</li>`).join('') + '</ul>';
       }
 
-      document.getElementById('sidebar').innerHTML = `
+      const sidebarEl = document.getElementById('sidebar');
+      sidebarEl.innerHTML = `
         <div class="card">
           ${k.foto_url ? `<img src="${k.foto_url}" alt="${k.naam}" style="width:100%; height:180px; object-fit:cover; border-radius:12px; margin-bottom:12px;">` : ''}
           <div>
@@ -294,6 +295,11 @@
           <button onclick="submitVisitorItem(${k.id})" class="btn" style="width: 100%;">Melding Insturen</button>
         </div>
       `;
+
+      // Vloeiend scrollen naar de details op mobiele schermen
+      if (window.innerWidth <= 768) {
+        sidebarEl.scrollIntoView({ behavior: 'smooth' });
+      }
     }
 
     async function submitVisitorItem(kastjeId) {
